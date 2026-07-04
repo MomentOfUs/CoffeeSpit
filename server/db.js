@@ -92,6 +92,48 @@ CREATE TABLE IF NOT EXISTS post_comments (
   rating TEXT DEFAULT '',
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS tasting_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  device_id TEXT NOT NULL,
+  scan_id INTEGER REFERENCES scans(id),
+  rating INTEGER DEFAULT 0,
+  flavor_tags TEXT DEFAULT '[]',
+  body INTEGER DEFAULT 3,
+  notes TEXT DEFAULT '',
+  would_reorder INTEGER DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS caffeine_feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  device_id TEXT NOT NULL,
+  scan_id INTEGER REFERENCES scans(id),
+  caffeine_mg INTEGER NOT NULL,
+  sleep_latency_min INTEGER DEFAULT 0,
+  palpitation INTEGER DEFAULT 0,
+  severity INTEGER DEFAULT 0,
+  note TEXT DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ai_impressions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  device_id TEXT NOT NULL,
+  impression_text TEXT NOT NULL,
+  keywords_json TEXT DEFAULT '[]',
+  notes_count INTEGER DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS weekly_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  device_id TEXT NOT NULL,
+  week_start TEXT NOT NULL,
+  content_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE(device_id, week_start)
+);
 `);
 
 // ---- 幂等迁移：为旧库补 custom_coffee_json 列 ----

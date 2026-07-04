@@ -53,6 +53,15 @@ export const api = {
   uploadImage,
   // 扫描
   analyze: (payload) => request("/api/scan/analyze", { method: "POST", body: payload }),
+  analyzeImage: (file) => {
+    const fd = new FormData();
+    fd.append("image", file);
+    return fetch(BASE + "/api/scan/analyze-image", {
+      method: "POST",
+      headers: { "X-Device-Id": getDeviceId() },
+      body: fd
+    }).then(r => r.json());
+  },
   analyzeCustom: (payload) => request("/api/scan/analyze-custom", { method: "POST", body: payload }),
   analyzeNatural: (text) => request("/api/scan/analyze-natural", { method: "POST", body: { text } }),
   history: () => request(`/api/scan/history/${getDeviceId()}`),
@@ -76,6 +85,24 @@ export const api = {
   intakeStats: (period) => request(`/api/profile/${getDeviceId()}/intake-stats?period=${period}`),
   addIntake: (payload) => request(`/api/profile/${getDeviceId()}/intake`, { method: "POST", body: payload }),
   exportData: () => request(`/api/profile/${getDeviceId()}/export`),
+  // AI 生活品味
+  sceneSuggestion: () => request(`/api/profile/${getDeviceId()}/scene-suggestion`),
+  tasteProfile: () => request(`/api/profile/${getDeviceId()}/taste-profile`),
+  mbtiTypes: () => request("/api/mbti/types"),
+  addNote: (scanId, payload) => request(`/api/scan/${scanId}/note`, { method: "POST", body: payload }),
+  getNotes: () => request(`/api/profile/${getDeviceId()}/notes`),
+  // AI 咖啡推荐（支持情境：天气/心情/睡眠）
+  recommend: (text, ctx = {}) => request("/api/recommend", { method: "POST", body: { text, ...ctx } }),
+  // 天气（服务端串联 regeo + weather）
+  getWeather: (lat, lng) => request(`/api/weather?lat=${lat}&lng=${lng}`),
+  // AI 喜好印象（手动生成，后端缓存）
+  generateImpression: () => request(`/api/profile/${getDeviceId()}/impression`, { method: "POST" }),
+  // 咖啡周报（force=1 强制刷新）
+  getWeeklyReport: (force = false) => request(`/api/profile/${getDeviceId()}/weekly-report${force ? "?force=1" : ""}`),
+  // 咖啡因耐受反馈
+  submitCaffeineFeedback: (scanId, payload) => request(`/api/scan/${scanId}/caffeine-feedback`, { method: "POST", body: payload }),
+  // 咖啡因耐受阈值
+  getCaffeineThreshold: () => request(`/api/profile/${getDeviceId()}/caffeine-threshold`),
   // 元数据
   meta: () => request("/api/meta")
 };

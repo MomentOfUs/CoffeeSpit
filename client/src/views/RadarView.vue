@@ -7,6 +7,63 @@
       <p class="h-sub">只收录不堆特调、不加奶油顶、老老实实做基础款的实在咖啡店。坐标基于实地走访与社区提名，每周复核。</p>
     </div>
 
+    <!-- 当前情境 -->
+    <section class="section ctx-bar">
+      <div class="section-head">
+        <h3>当前情境</h3>
+        <span class="label"><span class="dot"></span>情境化推荐</span>
+      </div>
+      <div class="panel panel-pad ctx-body">
+        <div class="ctx-row">
+          <span class="ctx-label">天气</span>
+          <span v-if="weatherChip" class="ctx-chip ctx-weather">{{ weatherChip }}</span>
+          <span v-else class="ctx-chip ctx-weather muted">{{ locating ? '定位中…' : '未获取定位' }}</span>
+        </div>
+        <div class="ctx-row">
+          <span class="ctx-label">心情</span>
+          <button v-for="m in moods" :key="m" type="button" class="ctx-chip"
+                  :class="{ active: mood === m }" @click="pickMood(m)">{{ m }}</button>
+        </div>
+        <div class="ctx-row">
+          <span class="ctx-label">睡眠</span>
+          <button v-for="s in sleeps" :key="s" type="button" class="ctx-chip"
+                  :class="{ active: sleep === s }" @click="pickSleep(s)">{{ s }}</button>
+        </div>
+        <input class="ctx-input" v-model="ctxText" placeholder="补充偏好（可选），如：低糖、燕麦奶、预算20" />
+        <div class="ctx-actions">
+          <button class="btn btn-primary" @click="reRecommend" :disabled="recLoading">
+            <Icon name="stamp" :size="14" /> {{ recLoading ? 'AI 思考中…' : '重新推荐' }}
+          </button>
+          <button v-if="recMode === 'ai'" class="btn" @click="resetToScene">恢复场景推荐</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 为你优选 -->
+    <div v-if="personalized.length" class="section dk-radar-foryou">
+      <div class="section-head">
+        <h3>为你优选</h3>
+        <span class="label"><span class="dot"></span>AI 推荐</span>
+      </div>
+      <div class="reveal-group">
+        <div v-for="(s, idx) in personalized" :key="s.id || idx" class="rec-card paper-texture"
+             :style="{ '--i': idx }" @click="openDrawer(s)">
+          <div class="rec-main">
+            <div class="rec-name">{{ s.name }}</div>
+            <div class="rec-sig">{{ s.signature || s.desc }}</div>
+            <div class="rec-reason">{{ s.recReason || '基于当前时段推荐' }}</div>
+          </div>
+          <div class="rec-tac">
+            <div class="rec-price">¥{{ s.price }}</div>
+            <div v-if="s.saved" class="rec-saved">省 ¥{{ s.saved }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 桌面端：地图+列表 双列布局 -->
+    <div class="dk-radar-layout">
+      <div class="dk-radar-aside">
     <!-- 2. 地图 -->
     <div class="section">
       <div class="section-head">
@@ -48,6 +105,8 @@
         >{{ o.label }}</button>
       </div>
     </div>
+      </div>
+      <div class="dk-radar-list">
 
     <!-- 4. 店铺列表 -->
     <div class="section">
@@ -118,6 +177,8 @@
         </div>
       </div>
     </div>
+      </div>
+    </div>
 
     <!-- 6. 详情抽屉 -->
     <div v-if="drawerShop" class="drawer-mask" @click="closeDrawer"></div>
@@ -186,12 +247,15 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { useRoute } from "vue-router";
 import { api } from "../api/index.js";
 import { useStore } from "../stores/app.js";
 import Icon from "../components/Icon.vue";
 import Stamp from "../components/Stamp.vue";
 
-const { meta: storeMeta, toast } = useStore();
+const route = useRoute();
+
+const { meta: storeMeta, toast, state, loadWeather } = useStore();
 
 // 筛选选项
 const shopTags = ref(["全部"]);
@@ -295,12 +359,35 @@ function initMap() {
     if (mapRetry++ < 30) setTimeout(initMap, 300);
     return;
   }
+
+  // 若从扫描页传入坐标，以该坐标为中心
+  const scanLat = route.query.scanLat;
+  const scanLng = route.query.scanLng;
+  const center = (scanLng && scanLat)
+    ? [parseFloat(scanLng), parseFloat(scanLat)]
+    : [121.4500, 31.2250];
+
   map = new AMap.Map("amap-container", {
-    zoom: 12,
-    center: [121.4500, 31.2250], // 上海中心
-    mapStyle: "amap://styles/whitesmoke" // 暖色主题用浅色底图
+    zoom: (scanLng && scanLat) ? 16 : 12,
+    center,
+    mapStyle: "amap://styles/whitesmoke"
   });
   drawMarkers();
+
+  // 若有扫描坐标，额外添加一个高亮标记
+  if (scanLng && scanLat) {
+    const scanName = route.query.scanName || "刚扫描的店铺";
+    const scanMarker = new AMap.Marker({
+      position: [parseFloat(scanLng), parseFloat(scanLat)],
+      content: `<div class="map-marker-scan"><div class="pin-scan-dot"></div><div class="pin-scan-name">${scanName}</div></div>`,
+      offset: new AMap.Pixel(-40, -20),
+      zIndex: 100
+    });
+    scanMarker.on("click", () => {
+      toast(`📍 ${scanName}`, "ok");
+    });
+    map.add(scanMarker);
+  }
 }
 
 function drawMarkers() {
@@ -323,6 +410,93 @@ function drawMarkers() {
   });
 }
 
+// ---- 为你优选：场景化 AI 推荐 ----
+const personalized = ref([]);
+async function loadPersonalized() {
+  try {
+    const data = await api.sceneSuggestion();
+    if (data && data.recommendations && data.recommendations.length) {
+      const reasonMap = {
+        morning: "适合清晨的温和选择",
+        afternoon: "午后提神推荐",
+        evening: "晚间低因之选",
+        late_night: "深夜续命备选"
+      };
+      personalized.value = data.recommendations.slice(0, 3).map(s => ({
+        ...s,
+        recReason: reasonMap[data.scene] || "基于当前时段推荐"
+      }));
+    }
+  } catch (e) { /* 静默失败 */ }
+}
+
+// ---- 当前情境：天气 + 心情/睡眠 + 偏好 ----
+const moods = ["放松", "疲惫", "开心", "焦虑"];
+const sleeps = ["充足", "一般", "不足"];
+const mood = ref("");
+const sleep = ref("");
+const ctxText = ref("");
+const ctxLat = ref(null);
+const ctxLng = ref(null);
+const recLoading = ref(false);
+const recMode = ref("scene");
+const locating = ref(true);
+
+const weatherChip = computed(() => {
+  const w = state.weather;
+  if (!w || !w.ok) return null;
+  return `${w.weather || ""} ${w.temperature ?? ""}°`.trim();
+});
+
+function pickMood(m) { mood.value = mood.value === m ? "" : m; }
+function pickSleep(s) { sleep.value = sleep.value === s ? "" : s; }
+
+function locateWeather() {
+  if (!navigator.geolocation) { locating.value = false; return; }
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    ctxLat.value = pos.coords.latitude;
+    ctxLng.value = pos.coords.longitude;
+    await loadWeather(ctxLat.value, ctxLng.value);
+    locating.value = false;
+  }, () => { locating.value = false; }, { timeout: 8000, maximumAge: 600000 });
+}
+
+async function reRecommend() {
+  if (recLoading.value) return;
+  recLoading.value = true;
+  try {
+    const text = ctxText.value.trim() || "结合当前情境推荐几杯适合的咖啡";
+    const ctx = {};
+    if (ctxLat.value != null && ctxLng.value != null) { ctx.lat = ctxLat.value; ctx.lng = ctxLng.value; }
+    if (mood.value) ctx.mood = mood.value;
+    if (sleep.value) ctx.sleep = sleep.value;
+    const data = await api.recommend(text, ctx);
+    if (data.ok && data.recommendations?.length) {
+      personalized.value = data.recommendations.slice(0, 3).map(r => {
+        const found = shops.value.find(s => s.id === r.shopInfo?.id);
+        const priceNum = parseInt(String(r.price).replace(/\D/g, ""), 10) || 0;
+        const base = found || {
+          id: r.shopInfo?.id, name: r.shop, district: r.shopInfo?.district,
+          dist: r.shopInfo?.dist, price: priceNum
+        };
+        return { ...base, signature: r.item, desc: r.item,
+          recReason: r.reason || "AI 情境推荐", price: base.price || priceNum || 0,
+          saved: base.saved || 0 };
+      });
+      recMode.value = "ai";
+      toast("已根据当前情境重新推荐", "ok");
+    } else {
+      toast("暂无匹配，试试调整偏好", "err");
+    }
+  } catch (e) { toast("AI 推荐服务暂时不可用", "err"); }
+  finally { recLoading.value = false; }
+}
+
+function resetToScene() {
+  recMode.value = "scene";
+  loadPersonalized();
+}
+
 onMounted(async () => {
   // 标签来自 api.meta().shopTags（优先复用 store 缓存）
   try {
@@ -334,7 +508,9 @@ onMounted(async () => {
     /* 保留默认标签 */
   }
   await loadShops();
+  loadPersonalized();
   initMap();
+  locateWeather();
 });
 
 // 筛选 / 排序变化时重新拉取
@@ -361,6 +537,22 @@ watch(activeId, () => {
 .amap-box :deep(.amap-logo) { z-index: 1 !important; }
 .amap-box :deep(.amap-copyright) { z-index: 1 !important; }
 
+/* ---- 为你优选推荐卡 ---- */
+.rec-card {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 12px 14px; border-radius: var(--radius);
+  border: 1px solid var(--foam-2); cursor: pointer;
+  transition: all .2s ease;
+}
+.rec-card:active { transform: scale(0.98); border-color: var(--roast); }
+.rec-main { flex: 1; min-width: 0; }
+.rec-name { font-size: 14px; font-weight: 800; color: var(--espresso); margin-bottom: 3px; }
+.rec-sig { font-size: 11px; color: var(--mocha); margin-bottom: 4px; }
+.rec-reason { font-size: 10px; color: var(--roast); font-weight: 600; }
+.rec-tac { text-align: right; flex-shrink: 0; margin-left: 10px; }
+.rec-price { font-family: var(--mono); font-size: 18px; font-weight: 800; color: var(--espresso); }
+.rec-saved { font-family: var(--mono); font-size: 10px; color: var(--ok); font-weight: 600; }
+
 /* ---- 地图扫描扇形覆盖层 ---- */
 .map-sweep-overlay { position: absolute; top: 0; left: 0; right: 0; height: 320px; pointer-events: none; border-radius: var(--radius); overflow: hidden; z-index: 5; }
 .map-sweep-overlay::before { content: ""; position: absolute; top: 50%; left: 50%; width: 200%; height: 200%; transform: translate(-50%, -50%); background: conic-gradient(from 0deg, transparent 0deg, rgba(210,112,43,0.1) 30deg, transparent 60deg); animation: sweep 4s linear infinite; }
@@ -370,6 +562,31 @@ watch(activeId, () => {
 .map-wrap :deep(.map-marker-pin.active) { border-color: var(--roast); background: linear-gradient(180deg, #FFF, #FFF5E6); box-shadow: 0 0 0 2px var(--roast), 0 4px 12px rgba(210,112,43,0.3); }
 .map-wrap :deep(.pin-cup) { font-size: 14px; line-height: 1; }
 .map-wrap :deep(.pin-price) { font-size: 10px; font-weight: 800; color: var(--caramel); font-family: var(--mono); }
+
+/* ---- 扫描店铺高亮标记 ---- */
+.map-wrap :deep(.map-marker-scan) { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.map-wrap :deep(.pin-scan-dot) {
+  width: 18px; height: 18px;
+  background: var(--danger);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(242,92,5,0.25), 0 4px 10px rgba(43,30,20,0.2);
+  animation: scanPinPulse 1.5s ease-in-out infinite;
+}
+@keyframes scanPinPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 3px rgba(242,92,5,0.25), 0 4px 10px rgba(43,30,20,0.2); }
+  50% { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(242,92,5,0.15), 0 6px 14px rgba(43,30,20,0.25); }
+}
+.map-wrap :deep(.pin-scan-name) {
+  font-size: 10px; font-weight: 700;
+  color: var(--espresso);
+  background: var(--cream);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--foam-2);
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(43,30,20,0.08);
+}
 
 /* ---- 中文标签改用正文字体（等宽仅留给数字 / 数据值） ---- */
 .h-eyebrow { font-family: var(--font); }
@@ -512,4 +729,46 @@ watch(activeId, () => {
   font-weight: 800;
   color: var(--caramel);
 }
+
+/* ===== 桌面端：地图+列表 双列布局 ===== */
+@media (min-width: 1024px) {
+  .dk-radar-foryou .reveal-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .dk-radar-foryou .rec-card { margin-top: 0; }
+
+  .dk-radar-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  .dk-radar-aside {
+    position: sticky;
+    top: calc(var(--dk-topbar-h, 56px) + 16px);
+  }
+  .dk-radar-aside .amap-box { height: 420px; }
+  .dk-radar-aside .map-sweep-overlay { height: 420px; }
+
+  .dk-radar-list .reveal-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .dk-radar-list .shop-card { margin-top: 0; }
+}
+
+/* ---- 当前情境条（新功能） ---- */
+.ctx-bar .ctx-body { display: flex; flex-direction: column; gap: 10px; }
+.ctx-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.ctx-label { font-size: 11px; color: var(--muted); width: 32px; flex: none; }
+.ctx-chip { min-height: 36px; padding: 6px 12px; border-radius: 2px; border: 1px solid var(--ink-black);
+  background: var(--oat); color: var(--ink-black); font-size: 12px; }
+.ctx-chip.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+.ctx-weather.muted { color: var(--muted); }
+.ctx-input { width: 100%; min-height: 40px; border-radius: 2px; border: 1px solid var(--ink-black);
+  background: var(--oat); color: var(--ink-black); padding: 8px 12px; font-size: 13px; }
+.ctx-actions { display: flex; gap: 8px; }
 </style>

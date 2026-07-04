@@ -43,7 +43,7 @@ export const ACHIEVEMENTS = [
   { key:"streak-7",    ico:"fire",    name:"连续 7 日",  sub:"连续7天",   desc:"连续 7 天有识破" },
   { key:"save-100",    ico:"coins",   name:"省下百元",   sub:"省下百元",    desc:"累计省下 100 元" },
   { key:"savior-10",   ico:"star",    name:"救星 10",    sub:"推荐10次",    desc:"推荐 10 次平价店" },
-  { key:"roast-5",     ico:"flame",   name:"毒舌 5",     sub:"毒舌5条",    desc:"阅读 5 条毒舌锐评" },
+  { key:"roast-5",     ico:"flame",   name:"深度解析 5",  sub:"解析5条",    desc:"阅读 5 条 AI 深度解析" },
   { key:"low-caff",    ico:"cup",     name:"清醒选择",  sub:"低因选择",desc:"扫描低因咖啡" },
   { key:"no-sugar",    ico:"diamond", name:"无糖先锋",  sub:"无糖先锋",    desc:"扫描无糖咖啡" },
   { key:"fav-3",       ico:"heart",   name:"收藏 3",     sub:"收藏3家",      desc:"收藏 3 家良心店" }

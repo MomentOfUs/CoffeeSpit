@@ -1,5 +1,5 @@
 <template>
-  <div class="page" :data-bg="nickname">
+  <div class="page" :data-bg="nickname" :class="{ 'has-personality': !!tasteProfile?.personality }">
     <!-- 1. 品鉴官证件（集章卡 hero） -->
     <div class="hero profile-hero paper-texture">
       <div class="hero-row">
@@ -22,8 +22,116 @@
 
     <!-- 以下 section 套 reveal-group staggered 入场 -->
     <div class="reveal-group">
+      <!-- 咖啡人格（MBTI 16 型）-->
+      <section v-if="tasteProfile?.personality" class="section sec-personality" style="--i: 0">
+        <div class="section-head">
+          <h3>咖啡人格</h3>
+          <span class="label"><span class="dot"></span>MBTI 16 型</span>
+        </div>
+        <div class="panel panel-pad personality-card paper-texture">
+          <!-- 头部：人物图 + 印章 + 名称 -->
+          <div class="pcard-head">
+            <div class="pframe ceramic">
+              <img :src="tasteProfile.personality.illustration" :alt="tasteProfile.personality.name" loading="lazy" />
+            </div>
+            <div class="phead-meta">
+              <Stamp :text="tasteProfile.personality.code" :tone="tasteProfile.personality.tone" shape="rect" :rotate="-3" />
+              <div class="pname serif">{{ tasteProfile.personality.name }}</div>
+              <div class="ptag">{{ tasteProfile.personality.tagline }}</div>
+            </div>
+          </div>
+
+          <!-- 维度倾向条 -->
+          <div class="pdim-wrap">
+            <MbtiBar v-for="d in tasteProfile.personality.dimensions" :key="d.key" :dim="d" />
+          </div>
+
+          <!-- 毒舌描述 -->
+          <p class="personality-desc">{{ tasteProfile.personality.desc }}</p>
+          <div v-if="tasteProfile.personality.confidence === 'low'" class="pconf">数据不足，画像待完善</div>
+
+          <!-- 统计 + 标签 -->
+          <div class="personality-stats">
+            <span><Icon name="scan" :size="11" /> {{ tasteProfile.scanCount }} 次扫描</span>
+            <span><Icon name="coins" :size="11" /> 均价 ¥{{ tasteProfile.avgPrice }}</span>
+          </div>
+          <div v-if="tasteProfile.topTags?.length" class="personality-tags">
+            <span v-for="t in tasteProfile.topTags.slice(0,3)" :key="t" class="chip soft">{{ t }}</span>
+          </div>
+
+          <button class="btn-mbti-almanac" @click="showAllTypes = true; loadAllTypes()">查看全部 16 型图鉴</button>
+          <button class="btn btn-block mt-8" @click="generateImpression" :disabled="impressionLoading">
+            <Icon name="sparkle" :size="14" /> {{ impressionLoading ? 'AI 撰写中…' : '生成我的咖啡画像' }}
+          </button>
+        </div>
+      </section>
+
+      <!-- AI 咖啡画像 -->
+      <section v-if="state.impression" class="section sec-impression" style="--i:0.5">
+        <div class="section-head">
+          <h3>AI 咖啡画像</h3>
+          <span class="label"><span class="dot"></span>印象手记</span>
+        </div>
+        <div class="panel panel-pad note-paper imp-card">
+          <div class="imp-stamp">
+            <Stamp :text="tasteProfile?.personality?.code || '画像'"
+                   :tone="tasteProfile?.personality?.tone || 'roast'" shape="rect" :rotate="-4" />
+          </div>
+          <div class="imp-eyebrow mono">A NOTE ON YOUR TASTE</div>
+          <p class="imp-text serif">{{ state.impression.impression }}</p>
+          <div v-if="state.impression.keywords?.length" class="imp-kw-row">
+            <span v-for="k in state.impression.keywords" :key="k" class="imp-kw">{{ k }}</span>
+          </div>
+          <div class="imp-foot row-between">
+            <span class="mono" style="font-size:10px;color:var(--muted)">ID {{ String(deviceId).slice(-6) }}</span>
+            <button class="btn btn-sm" @click="shareMyImpression"><Icon name="share" :size="12" /> 分享画像</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 咖啡周报 -->
+      <section class="section sec-weekly" style="--i:0.6">
+        <div class="section-head">
+          <h3>咖啡周报</h3>
+          <span class="label"><span class="dot"></span>本周小结</span>
+        </div>
+        <div v-if="weeklyLoading && !state.weeklyReport" class="loading"><span class="spinner"></span>AI 撰写中…</div>
+        <div v-else-if="state.weeklyReport" class="panel panel-pad doc-paper">
+          <div class="doc-header">
+            <div class="doc-seal"><Stamp text="周报" tone="gold" shape="rect" :rotate="5" /></div>
+            <div class="doc-title serif">咖啡周报</div>
+            <div class="doc-meta mono">COFFEESPIT WEEKLY · {{ state.weeklyReport.weekStart || '' }}</div>
+          </div>
+          <div class="doc-body">
+            <div class="doc-summary">{{ state.weeklyReport.summary }}</div>
+            <ul v-if="state.weeklyReport.highlights?.length" class="doc-highlights">
+              <li v-for="(h, i) in state.weeklyReport.highlights" :key="i">{{ h }}</li>
+            </ul>
+            <div v-if="state.weeklyReport.tags?.length" class="doc-tags">
+              <span v-for="t in state.weeklyReport.tags" :key="t" class="wr-tag">{{ t }}</span>
+            </div>
+            <div class="doc-suggestion">
+              <span class="doc-sug-label mono">NEXT WEEK</span>
+              <p>{{ state.weeklyReport.suggestion }}</p>
+            </div>
+          </div>
+          <div class="doc-foot row-between">
+            <span class="mono" style="font-size:10px;color:var(--muted)">{{ state.weeklyReport.cached ? '已缓存' : '本周新生成' }}</span>
+            <button class="btn btn-sm" @click="refreshWeekly" :disabled="weeklyLoading">
+              <Icon name="refresh" :size="12" /> {{ weeklyLoading ? '生成中…' : '刷新周报' }}
+            </button>
+          </div>
+        </div>
+        <div v-else class="panel panel-pad" style="text-align:center;color:var(--muted)">
+          <p>本周还没有周报</p>
+          <button class="btn btn-sm mt-8" @click="refreshWeekly" :disabled="weeklyLoading">
+            <Icon name="refresh" :size="12" /> 生成本周周报
+          </button>
+        </div>
+      </section>
+
       <!-- 2. 统计网格 -->
-      <section class="section" :style="{ '--i': 0 }">
+      <section class="section sec-stats" :style="{ '--i': 0 }">
         <div class="section-head">
           <h3>数据概览</h3>
           <span class="label"><span class="dot"></span>数据概览</span>
@@ -42,7 +150,7 @@
       </section>
 
       <!-- 3. 今日摄入：3 个 CupLevel 横向排列 -->
-      <section class="section" :style="{ '--i': 1 }">
+      <section class="section sec-today" :style="{ '--i': 1 }">
         <div class="section-head">
           <h3>今日摄入</h3>
           <span class="label"><span class="dot"></span>今日摄入</span>
@@ -51,7 +159,7 @@
           <div class="grid-3">
             <CupLevel
               :value="todayVal.caffeineMg ?? 0"
-              :limit="LIMITS.caffeine"
+              :limit="caffLimit"
               label="咖啡因"
               unit="mg"
               tone="roast"
@@ -77,8 +185,25 @@
         </div>
       </section>
 
+      <!-- 咖啡因耐受 -->
+      <section class="section sec-tolerance" style="--i:1.2">
+        <div class="section-head">
+          <h3>咖啡因耐受</h3>
+          <span class="label"><span class="dot"></span>个性化上限</span>
+        </div>
+        <div class="panel panel-pad">
+          <CupLevel :value="todayVal.caffeineMg ?? 0" :limit="caffLimit"
+                    label="今日 / 上限" unit="mg" tone="roast" variant="caffeine" />
+          <div class="tol-meta row-between">
+            <span>你的上限 <b class="accent">{{ caffLimit }}mg</b></span>
+            <span v-if="toleranceInfo">反馈记录 {{ toleranceInfo.feedbackCount ?? 0 }} 次</span>
+          </div>
+          <p class="tol-tip">在品鉴笔记里记录入睡延迟与心悸，系统会自动校准你的咖啡因耐受额度。</p>
+        </div>
+      </section>
+
       <!-- 摄入趋势：周/月/年统计 -->
-      <section class="section" :style="{ '--i': 1.5 }">
+      <section class="section sec-intake" :style="{ '--i': 1.5 }">
         <div class="section-head">
           <h3>摄入趋势</h3>
           <span class="label"><span class="dot"></span>周期统计</span>
@@ -121,7 +246,7 @@
       </section>
 
       <!-- 4. 成就墙：圆形印章网格 -->
-      <section class="section" :style="{ '--i': 2 }">
+      <section class="section sec-achv" :style="{ '--i': 2 }">
         <div class="section-head">
           <h3>成就墙</h3>
           <span class="label mono"><span class="dot"></span>{{ unlockedCount }}/{{ achievementsMeta.length }}</span>
@@ -143,8 +268,42 @@
         </div>
       </section>
 
+      <!-- 品鉴日记时间线 -->
+      <section class="section sec-notes" style="--i: 2.5">
+        <div class="section-head">
+          <h3>品鉴日记</h3>
+          <span class="label"><span class="dot"></span>咖啡日记</span>
+        </div>
+        <div v-if="!notesLoaded" class="loading"><span class="spinner"></span>加载中…</div>
+        <div v-else-if="notesGroups.length === 0" class="panel panel-pad empty-state">
+          <div class="empty-ico"><Icon name="edit" :size="28" /></div>
+          <div class="empty-title">还没有品鉴笔记</div>
+          <div class="empty-desc">扫描后在报告中点击「记笔记」开始记录</div>
+          <button class="btn btn-sm mt-8" @click="goScan">去扫描</button>
+        </div>
+        <div v-else>
+          <div v-for="grp in notesGroups" :key="grp.label" class="notes-group">
+            <div class="notes-month">{{ grp.label }}</div>
+            <div v-for="n in grp.items" :key="n.id" class="note-item paper-texture">
+              <div class="note-head">
+                <div class="note-name">{{ n.coffeeName || n.originalName || '未命名' }}</div>
+                <div class="note-date mono">{{ n.dateStr }}</div>
+              </div>
+              <div class="note-stars">
+                <Icon v-for="s in 5" :key="s" name="star" :size="12" :class="{ 'star-on': s <= n.rating }" class="star-mini" />
+              </div>
+              <div v-if="n.flavorTags?.length" class="note-tags">
+                <span v-for="t in n.flavorTags" :key="t" class="chip soft mini">{{ t }}</span>
+              </div>
+              <div v-if="n.notes" class="note-text">{{ n.notes }}</div>
+              <div v-if="n.wouldReorder" class="note-reorder"><Icon name="check" :size="10" /> 会回购</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- 5. 健康档案：开关前加 Icon -->
-      <section class="section" :style="{ '--i': 3 }">
+      <section class="section sec-health" :style="{ '--i': 3 }">
         <div class="section-head">
           <h3>健康档案</h3>
           <span class="label"><span class="dot"></span>健康档案</span>
@@ -170,7 +329,7 @@
       </section>
 
       <!-- 6. 数据导出 -->
-      <section class="section" :style="{ '--i': 4 }">
+      <section class="section sec-data" :style="{ '--i': 4 }">
         <div class="section-head">
           <h3>数据管理</h3>
           <span class="label"><span class="dot"></span>导出报告</span>
@@ -181,18 +340,51 @@
         </button>
       </section>
     </div>
+
+    <!-- 16 型图鉴抽屉 -->
+    <Teleport to="body">
+      <div v-if="showAllTypes" class="mbti-drawer-mask" @click="showAllTypes = false">
+        <div class="mbti-drawer" @click.stop>
+          <div class="mbti-drawer-head">
+            <h4>16 型咖啡人格图鉴</h4>
+            <button class="mbti-drawer-close" @click="showAllTypes = false">✕</button>
+          </div>
+          <div class="mbti-drawer-body">
+            <div class="mbti-almanac-grid">
+              <div
+                v-for="t in allTypes"
+                :key="t.code"
+                class="mbti-almanac-item"
+                :class="{ current: t.code === tasteProfile?.personality?.code }"
+              >
+                <img :src="t.illustration" :alt="t.name" loading="lazy" />
+                <div class="mbti-almanac-info">
+                  <div class="mbti-almanac-code">{{ t.code }}</div>
+                  <div class="mbti-almanac-name">{{ t.name }}</div>
+                  <div class="mbti-almanac-drink">{{ t.drink }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
 import { computed, reactive, ref, watch, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { useStore, LIMITS, defaultProfile } from "../stores/app.js";
 import { api } from "../api/index.js";
 import Icon from "../components/Icon.vue";
 import Stamp from "../components/Stamp.vue";
 import CupLevel from "../components/CupLevel.vue";
+import MbtiBar from "../components/MbtiBar.vue";
 import { useCountUp } from "../composables/useCountUp.js";
+import { shareImpressionCard } from "../composables/useShareCard.js";
 
+const router = useRouter();
 const {
   state,
   stats,
@@ -200,7 +392,10 @@ const {
   refreshProfile,
   refreshToday,
   updateProfile,
-  toast
+  toast,
+  loadImpression,
+  loadWeeklyReport,
+  loadCaffeineThreshold
 } = useStore();
 
 // ---- 设备 ID ----
@@ -358,11 +553,106 @@ function barHeight(v) {
   return Math.max(2, (v / max) * 48);
 }
 
+// ---- 咖啡人格 ----
+const tasteProfile = ref(null);
+async function loadTasteProfile() {
+  try { tasteProfile.value = await api.tasteProfile(); }
+  catch (e) { /* 静默失败 */ }
+}
+
+// ---- 16 型图鉴 ----
+const showAllTypes = ref(false);
+const allTypes = ref([]);
+async function loadAllTypes() {
+  if (allTypes.value.length) return;
+  try { allTypes.value = await api.mbtiTypes(); }
+  catch (e) { /* 静默失败 */ }
+}
+
+// ---- 品鉴日记 ----
+const notesLoaded = ref(false);
+const notesList = ref([]);
+function goScan() { router.push("/scan"); }
+
+const notesGroups = computed(() => {
+  if (!notesList.value.length) return [];
+  const now = new Date();
+  const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const lastMonthD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth = `${lastMonthD.getFullYear()}-${String(lastMonthD.getMonth() + 1).padStart(2, "0")}`;
+  const groups = {};
+  notesList.value.forEach(n => {
+    // 解析 flavor_tags JSON
+    if (typeof n.flavor_tags === "string") {
+      try { n.flavorTags = JSON.parse(n.flavor_tags); } catch (_) { n.flavorTags = []; }
+    } else { n.flavorTags = n.flavor_tags || []; }
+    n.wouldReorder = !!n.would_reorder;
+    // 日期格式化
+    const d = new Date(n.created_at);
+    n.dateStr = `${d.getMonth() + 1}月${d.getDate()}日`;
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    let label;
+    if (ym === curMonth) label = "本月";
+    else if (ym === lastMonth) label = "上月";
+    else label = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+    if (!groups[label]) groups[label] = { label, items: [] };
+    groups[label].items.push(n);
+  });
+  return Object.values(groups);
+});
+
+async function loadNotes() {
+  try {
+    notesList.value = await api.getNotes();
+  } catch (e) { /* 静默失败 */ }
+  finally { notesLoaded.value = true; }
+}
+
+// ---- AI 画像 / 周报 / 耐受 ----
+const impressionLoading = ref(false);
+const weeklyLoading = ref(false);
+const toleranceInfo = ref(null);
+const caffLimit = computed(() => state.caffeineThreshold ?? LIMITS.caffeine);
+
+async function generateImpression() {
+  if (impressionLoading.value) return;
+  impressionLoading.value = true;
+  try { await loadImpression(); }
+  catch (_) {}
+  finally { impressionLoading.value = false; }
+}
+
+async function shareMyImpression() {
+  if (!state.impression) return;
+  try {
+    await shareImpressionCard({
+      impression: state.impression.impression,
+      keywords: state.impression.keywords || [],
+      nickname: state.profile?.nickname || state.profile?.name || "匿名品鉴官",
+      deviceId: deviceId.value,
+      personality: { tag: tasteProfile.value?.personality?.code || "品鉴官" }
+    });
+    toast("分享成功", "ok");
+  } catch (e) { toast("分享失败", "err"); }
+}
+
+async function refreshWeekly() {
+  if (weeklyLoading.value) return;
+  weeklyLoading.value = true;
+  try { await loadWeeklyReport(true); }
+  catch (_) {}
+  finally { weeklyLoading.value = false; }
+}
+
 // ---- 初始化：若 store 未初始化则拉取数据 ----
 onMounted(() => {
   if (!state.profile) refreshProfile();
   if (!state.deviceReady) refreshToday();
   switchPeriod("weekly");
+  loadTasteProfile();
+  loadNotes();
+  loadCaffeineThreshold().then(r => { if (r) toleranceInfo.value = r; }).catch(() => {});
+  loadWeeklyReport().catch(() => {});
 });
 </script>
 
@@ -428,4 +718,119 @@ onMounted(() => {
 .ic-bar { width: 60%; max-width: 14px; background: var(--roast); border-radius: 2px 2px 0 0; min-height: 2px; transition: height .4s ease; }
 .ic-bar.zero { background: var(--foam-2); }
 .ic-label { font-family: var(--mono); font-size: 7px; color: var(--latte); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* ---- 咖啡人格 ---- */
+.personality-card { text-align: left; }
+.pcard-head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+.pframe { width: 88px; height: 88px; flex-shrink: 0; border-radius: var(--radius, 12px); overflow: hidden; position: relative; border: 1px solid rgba(43,30,20,0.1); transform: rotate(-1deg); }
+.pframe img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.phead-meta { flex: 1; min-width: 0; }
+.pname { font-size: 17px; font-weight: 800; color: var(--espresso); margin: 6px 0 2px; line-height: 1.2; }
+.ptag { font-size: 10px; color: var(--latte); }
+.pdim-wrap { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 12px; }
+.pconf { font-size: 10px; color: var(--warn); text-align: center; margin: -4px 0 8px; }
+.personality-desc { font-size: 12px; color: var(--mocha); line-height: 1.6; margin: 0 0 10px; }
+.personality-stats { display: flex; justify-content: center; gap: 16px; font-size: 11px; color: var(--caramel); font-weight: 600; }
+.personality-stats span { display: flex; align-items: center; gap: 3px; }
+.personality-tags { display: flex; justify-content: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.btn-mbti-almanac { display: block; width: 100%; margin-top: 12px; padding: 9px; font-size: 11px; color: var(--roast); background: rgba(210,112,43,0.06); border: 1px solid rgba(210,112,43,0.2); border-radius: var(--radius-xs, 2px); cursor: pointer; font-weight: 600; transition: background 0.2s; }
+.btn-mbti-almanac:active { background: rgba(210,112,43,0.14); }
+
+/* 16 型图鉴抽屉 */
+.mbti-drawer-mask { position: fixed; inset: 0; background: rgba(28,26,23,0.5); z-index: 100; animation: fadeIn 0.25s; }
+.mbti-drawer { position: fixed; left: 0; right: 0; bottom: 0; max-height: 80vh; background: var(--oat); border-radius: 16px 16px 0 0; z-index: 101; display: flex; flex-direction: column; animation: drawerUp 0.3s cubic-bezier(0.2,0.9,0.3,1); }
+.mbti-drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 10px; border-bottom: 1px solid rgba(43,30,20,0.08); }
+.mbti-drawer-head h4 { font-size: 14px; font-weight: 800; color: var(--espresso); }
+.mbti-drawer-close { font-size: 18px; color: var(--latte); background: none; border: none; cursor: pointer; padding: 4px 8px; }
+.mbti-drawer-body { overflow-y: auto; padding: 12px 16px 24px; }
+.mbti-almanac-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.mbti-almanac-item { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: var(--radius-xs, 2px); background: rgba(43,30,20,0.03); border: 1px solid transparent; transition: border-color 0.2s; }
+.mbti-almanac-item.current { border-color: var(--roast); background: rgba(210,112,43,0.06); }
+.mbti-almanac-item img { width: 40px; height: 40px; border-radius: var(--radius-xs, 2px); object-fit: cover; flex-shrink: 0; }
+.mbti-almanac-info { min-width: 0; }
+.mbti-almanac-code { font-family: var(--mono); font-size: 10px; font-weight: 800; color: var(--roast); }
+.mbti-almanac-name { font-size: 11px; font-weight: 700; color: var(--espresso); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mbti-almanac-drink { font-size: 9px; color: var(--latte); }
+@keyframes drawerUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- 品鉴日记时间线 ---- */
+.empty-state { text-align: center; padding: 24px 16px; }
+.empty-ico { color: var(--latte); margin-bottom: 8px; }
+.empty-title { font-size: 13px; font-weight: 700; color: var(--espresso); margin-bottom: 4px; }
+.empty-desc { font-size: 11px; color: var(--mocha); }
+.mt-8 { margin-top: 8px; }
+.notes-group { margin-bottom: 16px; }
+.notes-month { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--latte); margin-bottom: 8px; padding-left: 4px; }
+.note-item { padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--foam-2); margin-bottom: 8px; }
+.note-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.note-name { font-size: 13px; font-weight: 700; color: var(--espresso); flex: 1; }
+.note-date { font-size: 9px; color: var(--latte); white-space: nowrap; }
+.note-stars { display: flex; gap: 2px; margin-bottom: 6px; }
+.star-mini { opacity: 0.2; color: var(--roast); }
+.star-mini.star-on { opacity: 1; }
+.note-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.chip.mini { font-size: 9px; padding: 2px 6px; min-height: auto; }
+.note-text { font-size: 12px; color: var(--mocha); line-height: 1.5; }
+.note-reorder { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--ok); font-weight: 600; margin-top: 6px; }
+
+/* ===== 桌面端：显式 grid-column 分配 + dense 填补 ===== */
+@media (min-width: 1024px) {
+  .page {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+    row-gap: 24px;
+    align-items: start;
+    grid-auto-flow: dense;
+  }
+  .profile-hero { grid-column: 1 / -1; }
+  .reveal-group { display: contents; }
+  .reveal-group > .section { margin-top: 0; }
+
+  /* 显式列分配（替代 :has() 嗅探） */
+  .sec-personality { grid-column: 1; grid-row: span 2; }
+  .sec-impression  { grid-column: 2; }
+  .sec-weekly      { grid-column: 1 / -1; }
+  .sec-stats       { grid-column: 2; }
+  .sec-today       { grid-column: 1; }
+  .sec-tolerance   { grid-column: 2; }
+  .sec-intake      { grid-column: 1 / -1; }
+  .sec-achv        { grid-column: 1 / -1; }
+  .sec-notes       { grid-column: 1 / -1; }
+  .sec-health      { grid-column: 1; }
+  .sec-data        { grid-column: 2; }
+
+  .achv-grid { grid-template-columns: repeat(8, 1fr); }
+}
+
+/* ---- AI 画像 / 周报 / 耐受（新功能） ---- */
+.imp-card { position: relative; }
+.imp-stamp { position: absolute; top: 12px; right: 14px; }
+.imp-eyebrow { font-size: 10px; letter-spacing: .14em; color: var(--muted); }
+.imp-text { font-size: 15px; line-height: 1.8; color: var(--ink-black); margin: 8px 0 12px; }
+.imp-kw-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.imp-kw { min-height: 28px; padding: 4px 10px; border-radius: 2px; border: 1px solid var(--ink-black);
+  color: var(--ink-black); font-size: 12px; background: var(--oat); }
+.imp-foot { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--ink-black); }
+
+.doc-paper { background: #fffdf6; border: 1px solid var(--ink-black); }
+.doc-header { text-align: center; border-bottom: 3px double var(--ink-black); padding-bottom: 10px; position: relative; }
+.doc-seal { position: absolute; top: -4px; right: 0; }
+.doc-title { font-size: 20px; color: var(--ink-black); letter-spacing: .2em; }
+.doc-meta { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.doc-body { padding: 12px 0; }
+.doc-summary { font-size: 14px; color: var(--ink-black); line-height: 1.7; }
+.doc-highlights { margin: 10px 0; padding-left: 18px; }
+.doc-highlights li { font-size: 13px; color: var(--ink-black); line-height: 1.7; list-style: "· "; }
+.doc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.wr-tag { min-height: 28px; padding: 4px 10px; border-radius: 2px; background: var(--ink-black);
+  color: var(--oat); font-size: 12px; }
+.doc-suggestion { margin-top: 10px; padding: 10px; background: var(--oat); border-left: 3px solid var(--orange); }
+.doc-sug-label { font-size: 10px; color: var(--orange); }
+.doc-suggestion p { font-size: 13px; color: var(--ink-black); margin-top: 4px; }
+.doc-foot { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--ink-black); }
+
+.tol-meta { margin-top: 10px; font-size: 12px; color: var(--ink-black); }
+.tol-tip { margin-top: 8px; font-size: 11px; color: var(--muted); line-height: 1.6; }
 </style>

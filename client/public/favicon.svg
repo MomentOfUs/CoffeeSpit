@@ -1,0 +1,18 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="fav-ceramic" cx="35%" cy="25%" r="75%">
+      <stop offset="0%" stop-color="#FCFAF4"/>
+      <stop offset="75%" stop-color="#E2D7C2"/>
+      <stop offset="100%" stop-color="#C9B89E"/>
+    </radialGradient>
+    <radialGradient id="fav-crema" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#5C4A3A"/>
+      <stop offset="100%" stop-color="#2B1E14"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="32" cy="58" rx="18" ry="3" fill="rgba(43,30,20,0.15)"/>
+  <path d="M16,18 L48,18 L44,54 L20,54 Z" fill="url(#fav-ceramic)" stroke="#7A4A24" stroke-width="1"/>
+  <path d="M48,28 Q58,28 58,36 Q58,44 48,44" fill="none" stroke="#7A4A24" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="32" cy="20" rx="15" ry="4" fill="url(#fav-crema)"/>
+  <ellipse cx="26" cy="18" rx="5" ry="1.5" fill="rgba(255,255,255,0.2)"/>
+</svg>

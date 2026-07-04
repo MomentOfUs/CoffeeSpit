@@ -1,5 +1,7 @@
 <template>
   <div class="page" data-bg="识破">
+    <div class="dk-scan-layout" :class="{ 'has-report': !!report }">
+    <section class="dk-mod dk-mod-intro">
     <!-- 精简数据条 -->
     <div class="mini-stats reveal-group mt-8">
       <span class="ms-item" style="--i:0"><Icon name="scan" :size="12" /> 扫描 {{ stats?.scanCount ?? '—' }} 次</span>
@@ -16,6 +18,79 @@
       <div style="--i:2;font-size:12px;opacity:0.8;margin-top:4px">拍照 · 上传 · 搜索 · 手动填，四种方式识破网红咖啡</div>
     </div>
 
+    <!-- 场景建议便签 -->
+    <div v-if="sceneSuggestion" class="note-paper scene-note mt-8" style="padding: 14px 14px 10px;">
+      <div class="scene-note-head">
+        <Icon :name="sceneIcon" :size="14" style="color:var(--caramel)" />
+        <span class="scene-note-title">{{ sceneSuggestion.headline }}</span>
+      </div>
+      <div v-if="sceneSuggestion.tip" class="scene-note-tip">{{ sceneSuggestion.tip }}</div>
+      <div v-if="sceneSuggestion.warning" class="scene-note-warn">
+        <Icon name="alert" :size="11" /> {{ sceneSuggestion.warning }}
+      </div>
+      <div v-if="sceneSuggestion.caffeineBudget < 200" class="scene-note-budget">
+        剩余额度 {{ sceneSuggestion.caffeineBudget }}mg / {{ sceneSuggestion.caffeineLimit }}mg
+      </div>
+    </div>
+    </section>
+
+    <section class="dk-mod dk-mod-airec">
+    <!-- AI 咖啡推荐 -->
+    <div class="ai-rec-card mt-8">
+      <div class="ai-rec-head">
+        <Icon name="stamp" :size="14" style="color:var(--roast)" />
+        <span class="ai-rec-title">AI 咖啡推荐</span>
+        <span class="ai-rec-tag">描述状态 · 智能匹配</span>
+      </div>
+      <div class="ai-rec-body">
+        <textarea v-model="recInput" rows="3"
+          placeholder="描述你现在的状态和喜好，如：刚运动完想喝清爽的，不要太甜，预算25以内"></textarea>
+        <button class="btn btn-primary btn-block mt-8" @click="submitRecommend"
+                :disabled="!recInput.trim() || recLoading">
+          <Icon name="stamp" :size="14" /> {{ recLoading ? 'AI 思考中…' : '获取推荐' }}
+        </button>
+      </div>
+      <div class="ai-rec-quick">
+        <button v-for="q in quickTags" :key="q" class="chip soft mini" @click="recInput = q">{{ q }}</button>
+      </div>
+      <div class="ai-rec-ctx">
+        <div class="ctx-line">
+          <span class="ctx-cap">心情</span>
+          <button v-for="m in moods" :key="m" type="button" class="ctx-chip"
+                  :class="{ active: mood === m }" @click="pickMood(m)">{{ m }}</button>
+        </div>
+        <div class="ctx-line">
+          <span class="ctx-cap">睡眠</span>
+          <button v-for="s in sleeps" :key="s" type="button" class="ctx-chip"
+                  :class="{ active: sleep === s }" @click="pickSleep(s)">{{ s }}</button>
+        </div>
+        <div v-if="weatherChip || locating" class="ctx-line">
+          <span class="ctx-cap">天气</span>
+          <span v-if="weatherChip" class="ctx-chip ctx-weather">{{ weatherChip }}</span>
+          <span v-else class="ctx-chip ctx-weather muted">{{ locating ? '定位中…' : '未获取' }}</span>
+        </div>
+      </div>
+      <div v-if="recResult" class="ai-rec-result mt-8">
+        <div class="ai-rec-summary">{{ recResult.summary }}</div>
+        <div v-if="recResult.recommendations.length === 0" class="ai-rec-empty">
+          暂时没有匹配的咖啡，试试换个描述？
+        </div>
+        <div v-for="(r, idx) in recResult.recommendations" :key="idx" class="ai-rec-item paper-texture">
+          <div class="ai-rec-item-main">
+            <div class="ai-rec-item-name">{{ r.item }}</div>
+            <div class="ai-rec-item-shop">{{ r.shop }} · {{ r.shopInfo?.district || '' }}</div>
+            <div class="ai-rec-item-reason">{{ r.reason }}</div>
+          </div>
+          <div class="ai-rec-item-tac">
+            <div class="ai-rec-item-price">{{ r.price }}</div>
+            <button v-if="r.shopInfo?.id" class="btn btn-sm mt-4" @click="goToShop(r.shopInfo.id)">去店里</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <section class="dk-mod dk-mod-capture">
     <!-- 搜索优先入口 -->
     <div class="search-box mt-12">
       <Icon name="search" :size="18" class="search-icon" />
@@ -67,43 +142,10 @@
         <Icon name="stamp" :size="14" /> {{ parsing ? 'AI 解析中…' : 'AI 解析并生成报告' }}
       </button>
     </div>
-
-    <!-- 热门选品 -->
-    <div class="section">
-      <div class="section-head">
-        <h3>或从热榜选一杯</h3>
-        <span class="label"><span class="dot"></span>热榜 · 直接试毒</span>
-      </div>
-      <div class="picker">
-        <div v-for="(c, i) in coffees" :key="c.id" class="picker-card" :class="{ active: selectedId === c.id }" @click="selectManual(c)">
-          <div class="top-row">
-            <span class="idx">No.{{ String(i + 1).padStart(2, '0') }}</span>
-            <span class="prem">+{{ c.premiumRate }}%</span>
-          </div>
-          <div class="name"><span class="em">{{ c.originalName.replace(/「|」/g, '') }}</span></div>
-          <div class="meta">
-            <span class="price">¥{{ c.reportedPrice }}</span>
-            <span class="idx">实付 ¥{{ c.realCost }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 今日摄入 -->
-    <div class="section">
-      <div class="section-head">
-        <h3>今日累计摄入</h3>
-        <span class="label"><span class="dot"></span>今日 · 实时同步</span>
-      </div>
-      <div class="panel panel-pad intake-compact">
-        <CupLevel :value="today.caffeineMg" :limit="LIMITS.caffeine" label="咖啡因" unit="mg" tone="roast" variant="caffeine" size="sm" />
-        <CupLevel :value="today.sugarG" :limit="LIMITS.sugar" label="糖" unit="g" tone="gold" variant="sugar" size="sm" />
-        <CupLevel :value="today.kcal" :limit="LIMITS.kcal" label="热量" unit="kcal" tone="mocha" variant="calories" size="sm" />
-      </div>
-    </div>
+    </section>
 
     <!-- 质检报告 -->
-    <div v-if="report" class="section" ref="reportRef">
+    <section v-if="report" class="dk-mod dk-mod-report" ref="reportRef">
       <div class="section-head">
         <h3>质检报告</h3>
         <span class="label"><span class="dot"></span>报告编号 {{ reportNo }}</span>
@@ -349,10 +391,10 @@
 
         <hr class="stitch-line" />
 
-        <!-- AI 毒舌 -->
-        <div class="rp-roast panel-pad" :class="{ read: roastRead }" @click="readRoast" style="--i:8">
-          <div class="rp-roast-head"><Icon name="flame" :size="12" /> 毒舌锐评 {{ roastRead ? '' : '（点击揭幕）' }}</div>
-          <div v-if="roastRead && Array.isArray(report.roast)" class="rp-roast-sections">
+        <!-- AI 深度解析 -->
+        <div class="rp-roast panel-pad" style="--i:8">
+          <div class="rp-roast-head"><Icon name="flame" :size="12" /> AI 深度解析</div>
+          <div v-if="Array.isArray(report.roast)" class="rp-roast-sections">
             <div v-for="(sec, i) in report.roast" :key="i" class="roast-sec" :style="{ '--i': i }">
               <div class="roast-sec-head">
                 <Icon :name="sec.icon" :size="13" class="roast-sec-icon" />
@@ -361,13 +403,7 @@
               <div class="roast-sec-text">{{ sec.text }}</div>
             </div>
           </div>
-          <div v-else-if="roastRead" class="rp-roast-text" style="animation: clipReveal .6s ease both">{{ report.roast }}</div>
-          <div v-else class="rp-roast-blur">
-            <div class="rp-roast-teaser">
-              <span v-for="(sec, i) in (Array.isArray(report.roast) ? report.roast : [])" :key="i" class="roast-teaser-tag">{{ sec.title }}</span>
-            </div>
-            <div class="rp-roast-teaser-hint">点击揭幕 · {{ Array.isArray(report.roast) ? report.roast.length : 0 }} 段深度分析</div>
-          </div>
+          <div v-else class="rp-roast-text" style="animation: clipReveal .6s ease both">{{ report.roast }}</div>
         </div>
 
         <hr class="stitch-line" />
@@ -392,10 +428,68 @@
 
         <div class="rp-foot panel-pad" style="--i:10">
           <button class="btn btn-sm" @click="shareReport"><Icon name="share" :size="12" /> 分享</button>
+          <button class="btn btn-sm" @click="openNoteDrawer"><Icon name="edit" :size="12" /> 记笔记</button>
           <button class="btn btn-sm btn-accent" @click="resetReport"><Icon name="refresh" :size="12" /> 再扫一杯</button>
         </div>
       </div>
+
+      <!-- 店铺地图定位（若 AI 识别到地址） -->
+      <div v-if="report.shopGeo" class="panel panel-pad mt-12" style="--i:9">
+        <div class="row-between">
+          <div class="row gap-6">
+            <Icon name="location" :size="14" style="color:var(--roast)" />
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--espresso)">{{ report.shopName || report.brand }}</div>
+              <div style="font-size:9px;color:var(--latte)">{{ report.shopGeo.address || '位置已识别' }}</div>
+            </div>
+          </div>
+          <router-link
+            :to="`/radar?scanLat=${report.shopGeo.lat}&scanLng=${report.shopGeo.lng}&scanName=${encodeURIComponent(report.shopName || report.brand || '')}`"
+            class="btn btn-sm btn-primary"
+          >地图查看</router-link>
+        </div>
+      </div>
+    </section>
+
+    <section class="dk-mod dk-mod-picker">
+    <!-- 热门选品 -->
+    <div class="section">
+      <div class="section-head">
+        <h3>或从热榜选一杯</h3>
+        <span class="label"><span class="dot"></span>热榜 · 直接试毒</span>
+      </div>
+      <div class="picker">
+        <div v-for="(c, i) in coffees" :key="c.id" class="picker-card" :class="{ active: selectedId === c.id }" @click="selectManual(c)">
+          <div class="top-row">
+            <span class="idx">No.{{ String(i + 1).padStart(2, '0') }}</span>
+            <span class="prem">+{{ c.premiumRate }}%</span>
+          </div>
+          <div class="name"><span class="em">{{ c.originalName.replace(/「|」/g, '') }}</span></div>
+          <div class="meta">
+            <span class="price">¥{{ c.reportedPrice }}</span>
+            <span class="idx">实付 ¥{{ c.realCost }}</span>
+          </div>
+        </div>
+      </div>
     </div>
+    </section>
+
+    <section class="dk-mod dk-mod-intake">
+    <!-- 今日摄入 -->
+    <div class="section">
+      <div class="section-head">
+        <h3>今日累计摄入</h3>
+        <span class="label"><span class="dot"></span>今日 · 实时同步</span>
+      </div>
+      <div class="panel panel-pad intake-compact">
+        <CupLevel :value="today.caffeineMg" :limit="caffLimit" label="咖啡因" unit="mg" tone="roast" variant="caffeine" size="sm" />
+        <CupLevel :value="today.sugarG" :limit="LIMITS.sugar" label="糖" unit="g" tone="gold" variant="sugar" size="sm" />
+        <CupLevel :value="today.kcal" :limit="LIMITS.kcal" label="热量" unit="kcal" tone="mocha" variant="calories" size="sm" />
+      </div>
+    </div>
+    </section>
+    </div>
+
 
     <!-- 拍照抽屉 -->
     <div v-if="cameraOpen" class="drawer-mask" @click="closeCamera"></div>
@@ -416,19 +510,103 @@
       </div>
       <canvas ref="canvasEl" hidden></canvas>
     </div>
+
+    <!-- 品鉴笔记抽屉 -->
+    <div v-if="noteDrawerOpen" class="drawer-mask" @click="closeNoteDrawer"></div>
+    <div v-if="noteDrawerOpen" class="drawer note-drawer">
+      <div class="row-between" style="padding:14px 14px 0">
+        <span class="mono" style="font-size:11px;letter-spacing:.14em;color:var(--caramel)"><Icon name="edit" :size="14" /> 品鉴笔记</span>
+        <button class="iconbtn" @click="closeNoteDrawer"><Icon name="close" :size="14" /></button>
+      </div>
+      <div style="padding:12px 14px 20px">
+        <div class="field">
+          <label>评分</label>
+          <div class="star-row">
+            <Icon v-for="n in 5" :key="n" name="star" :size="26"
+                  :class="{ 'star-on': n <= noteForm.rating }" class="star-btn"
+                  @click="noteForm.rating = n" />
+          </div>
+        </div>
+        <div class="field">
+          <label>风味标签</label>
+          <div class="row wrap gap-6">
+            <button v-for="t in flavorOptions" :key="t" class="chip"
+                    :class="{ active: noteForm.flavorTags.includes(t) }"
+                    @click="toggleFlavorTag(t)">{{ t }}</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>醇度 <span class="mono" style="color:var(--roast);font-size:10px">{{ bodyLabel }}</span></label>
+          <input type="range" min="1" max="5" v-model.number="noteForm.body" class="body-slider" />
+        </div>
+        <div class="field">
+          <div class="note-field-head">
+            <label>笔记</label>
+            <button v-if="speechSupported" type="button" class="mic-btn"
+                    :class="{ on: recognizing }" @click="toggleMic">
+              <svg v-if="!recognizing" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/>
+                <line x1="12" y1="18" x2="12" y2="22"/></svg>
+              <span v-else class="mic-dot"></span>
+              <span>{{ recognizing ? '聆听中' : '语音' }}</span>
+            </button>
+          </div>
+          <textarea v-model="noteForm.notes" rows="3" placeholder="这杯喝起来怎么样？"></textarea>
+        </div>
+        <div class="body-feedback">
+          <button type="button" class="bf-toggle" @click="bodyFeedbackOpen = !bodyFeedbackOpen">
+            <span>身体反馈（可选）</span>
+            <Icon name="chevron-down" :size="14" :class="{ open: bodyFeedbackOpen }" />
+          </button>
+          <div v-if="bodyFeedbackOpen" class="bf-body">
+            <div class="bf-row">
+              <label>入睡延迟 <span class="mono">{{ noteForm.sleepLatency }} 分钟</span></label>
+              <input type="range" min="0" max="120" step="5" v-model.number="noteForm.sleepLatency" class="body-slider" />
+            </div>
+            <div class="switch">
+              <div><div class="sw-name">心悸</div><div class="sw-code">PALPITATION</div></div>
+              <div class="toggle" :class="{ on: noteForm.palpitation }"
+                   @click="noteForm.palpitation = !noteForm.palpitation"></div>
+            </div>
+            <div class="bf-row">
+              <label>严重程度</label>
+              <div class="sev-chips">
+                <button v-for="s in sevOptions" :key="s.v" type="button" class="sev-chip"
+                        :class="{ active: noteForm.severity === s.v }"
+                        @click="noteForm.severity = noteForm.severity === s.v ? 0 : s.v">{{ s.l }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="switch">
+          <div>
+            <div class="sw-name">会回购</div>
+            <div class="sw-code">WOULD REORDER</div>
+          </div>
+          <div class="toggle" :class="{ on: noteForm.wouldReorder }" @click="noteForm.wouldReorder = !noteForm.wouldReorder"></div>
+        </div>
+        <button class="btn btn-primary btn-block mt-12" @click="submitNote" :disabled="submittingNote">
+          <Icon name="check" :size="14" /> {{ submittingNote ? '保存中…' : '保存笔记' }}
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
+import { useRouter } from "vue-router";
 import { api } from "../api/index.js";
 import { useStore, LIMITS } from "../stores/app.js";
 import Icon from "../components/Icon.vue";
 import Stamp from "../components/Stamp.vue";
 import CupLevel from "../components/CupLevel.vue";
 import { useCountUp } from "../composables/useCountUp.js";
+import { shareReportCard } from "../composables/useShareCard.js";
 
-const { state, today, toast, refreshProfile, refreshToday, stats } = useStore();
+const { state, today, toast, refreshProfile, refreshToday, stats, loadWeather } = useStore();
+const router = useRouter();
 
 const ready = computed(() => state.deviceReady);
 
@@ -474,6 +652,8 @@ const fileInput = ref(null);
 onMounted(async () => {
   try { coffees.value = await api.getCoffees(); } catch (e) { toast("咖啡库加载失败", "err"); }
   try { history.value = await api.history(); } catch (e) { /* ignore */ }
+  loadSceneSuggestion();
+  locateAndWeather();
 });
 onBeforeUnmount(() => { stopCamera(); });
 
@@ -566,9 +746,20 @@ async function runScan(file, withImage) {
   scanning.value = true;
   roastRead.value = false;
   try {
-    let imageUrl = "";
-    if (withImage) { previewUrl.value = URL.createObjectURL(file); const up = await api.uploadImage(file); imageUrl = up.url; }
-    const r = await api.analyze({ imageUrl });
+    let r;
+    if (withImage) {
+      previewUrl.value = URL.createObjectURL(file);
+      r = await api.analyzeImage(file);
+      if (!r.ok && r.detected === false) {
+        toast(r.reason || "AI 未能识别图片中的菜单，请手动录入", "err");
+        showManualForm.value = true;
+        scanning.value = false;
+        return;
+      }
+      if (!r.ok) throw new Error(r.error || "图像识别失败");
+    } else {
+      r = await api.analyze({});
+    }
     applyReport(r);
   } catch (e) { toast("识别失败：" + e.message, "err"); }
   finally { scanning.value = false; }
@@ -576,9 +767,11 @@ async function runScan(file, withImage) {
 
 function applyReport(r) {
   report.value = r.coffee;
+  currentScanId.value = r.scanId || null;
   recs.value = r.recommendations || [];
   refreshToday(); refreshProfile();
   api.history().then(h => { history.value = h; }).catch(() => {});
+  loadSceneSuggestion();
   toast("识破成功！溢价 " + r.coffee.premiumRate + "%", "ok");
   nextTick(() => { reportRef.value?.scrollIntoView({ behavior: "smooth", block: "start" }); });
 }
@@ -709,7 +902,8 @@ const warnings = computed(() => {
   if (p.pregnant && c.caffeineMg > 80) w.push(`孕期/备孕：咖啡因 ${c.caffeineMg}mg 偏高，每日建议 < 200mg。`);
   if (p.lactoseIntolerant && c.tags.includes("鲜奶")) w.push(`乳糖不耐：本杯含鲜奶，可能引起不适。`);
   if (p.nightOwl) { const hour = new Date().getHours(); if (hour >= 20 && c.caffeineMg > 80) w.push(`夜猫子提醒：晚间摄入 ${c.caffeineMg}mg 咖啡因，可能影响入睡。`); }
-  if (today.value.caffeineMg + c.caffeineMg > LIMITS.caffeine) w.push(`今日累计将超 ${LIMITS.caffeine}mg 上限。`);
+  const caff = caffLimit.value;
+  if (today.value.caffeineMg + c.caffeineMg > caff) w.push(`今日累计将超 ${caff}mg 上限。`);
   if (today.value.sugarG + c.sugarG > LIMITS.sugar) w.push(`今日糖摄入将超 ${LIMITS.sugar}g 上限。`);
   return w;
 });
@@ -731,13 +925,181 @@ function buildCompare(label, price, caffeine, diff) {
   return { label, price, caffeine, diff, deltaClass: cls, sign, pct };
 }
 
-// ---- 毒舌 / 分享 / 重置 ----
-function readRoast() { if (!roastRead.value) { roastRead.value = true; refreshProfile(); toast("已解锁毒舌锐评", "ok"); } }
-function shareReport() {
-  if (navigator.share && report.value) navigator.share({ title: "一杯大实话", text: `${report.value.originalName} · 溢价 ${report.value.premiumRate}%` }).catch(() => {});
-  else toast("报告链接已复制（mock）");
+// ---- 深度解析统计 / 分享 / 重置 ----
+function readRoast() { refreshProfile(); /* 统计上报，不再控制展开 */ }
+async function shareReport() {
+  if (!report.value) return;
+  toast("正在生成分享卡…");
+  try {
+    await shareReportCard(report.value);
+    toast("分享成功", "ok");
+  } catch (e) {
+    toast("分享失败", "err");
+  }
 }
-function resetReport() { report.value = null; roastRead.value = false; previewUrl.value = ""; selectedId.value = null; recs.value = []; }
+function resetReport() { report.value = null; roastRead.value = false; previewUrl.value = ""; selectedId.value = null; recs.value = []; currentScanId.value = null; }
+
+// ---- 场景建议 ----
+const sceneSuggestion = ref(null);
+const sceneIcon = computed(() => {
+  const m = { morning: "cup", afternoon: "gauge", evening: "clock", late_night: "alert" };
+  return m[sceneSuggestion.value?.scene] || "cup";
+});
+async function loadSceneSuggestion() {
+  try { sceneSuggestion.value = await api.sceneSuggestion(); }
+  catch (e) { /* 静默失败 */ }
+}
+
+// ---- 品鉴笔记 ----
+const currentScanId = ref(null);
+const noteDrawerOpen = ref(false);
+const submittingNote = ref(false);
+const flavorOptions = ["醇苦", "果酸", "焦糖", "坚果", "花香", "巧克力", "燕麦感", "糖浆感", "干净", "寡淡"];
+const noteForm = ref({ rating: 0, flavorTags: [], body: 3, notes: "", wouldReorder: false,
+  sleepLatency: 0, palpitation: false, severity: 0 });
+const sevOptions = [{ v: 1, l: "轻度" }, { v: 2, l: "中度" }, { v: 3, l: "重度" }];
+const bodyFeedbackOpen = ref(false);
+const bodyLabel = computed(() => {
+  const labels = ["", "极淡", "清淡", "适中", "醇厚", "浓郁"];
+  return labels[noteForm.value.body] || "适中";
+});
+function openNoteDrawer() {
+  noteForm.value = { rating: 0, flavorTags: [], body: 3, notes: "", wouldReorder: false,
+    sleepLatency: 0, palpitation: false, severity: 0 };
+  bodyFeedbackOpen.value = false;
+  noteDrawerOpen.value = true;
+}
+function closeNoteDrawer() { noteDrawerOpen.value = false; }
+function toggleFlavorTag(t) {
+  const i = noteForm.value.flavorTags.indexOf(t);
+  if (i >= 0) noteForm.value.flavorTags.splice(i, 1);
+  else noteForm.value.flavorTags.push(t);
+}
+async function submitNote() {
+  if (!currentScanId.value) { toast("请先扫描一杯咖啡", "err"); return; }
+  if (noteForm.value.rating === 0) { toast("请先评分", "err"); return; }
+  submittingNote.value = true;
+  try {
+    const f = noteForm.value;
+    await api.addNote(currentScanId.value, {
+      rating: f.rating, flavorTags: f.flavorTags, body: f.body,
+      notes: f.notes, wouldReorder: f.wouldReorder
+    });
+    const hasFeedback = f.palpitation || f.sleepLatency > 0 || f.severity > 0;
+    if (hasFeedback) {
+      try {
+        const r = await api.submitCaffeineFeedback(currentScanId.value, {
+          sleepLatency: f.sleepLatency, palpitation: f.palpitation,
+          severity: f.severity, note: f.notes
+        });
+        if (r && r.threshold) state.caffeineThreshold = r.threshold;
+      } catch (_) { /* 反馈失败不影响笔记保存 */ }
+    }
+    toast("笔记已保存", "ok");
+    closeNoteDrawer();
+  } catch (e) {
+    toast("保存失败", "err");
+  } finally {
+    submittingNote.value = false;
+  }
+}
+
+// ---- 情境与定位 ----
+const moods = ["放松", "疲惫", "开心", "焦虑"];
+const sleeps = ["充足", "一般", "不足"];
+const mood = ref("");
+const sleep = ref("");
+const recLat = ref(null);
+const recLng = ref(null);
+const locating = ref(true);
+const weatherChip = computed(() => {
+  const w = state.weather;
+  if (!w || !w.ok) return null;
+  return `${w.weather || ""} ${w.temperature ?? ""}°`.trim();
+});
+function pickMood(m) { mood.value = mood.value === m ? "" : m; }
+function pickSleep(s) { sleep.value = sleep.value === s ? "" : s; }
+function locateAndWeather() {
+  if (!navigator.geolocation) { locating.value = false; return; }
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    recLat.value = pos.coords.latitude;
+    recLng.value = pos.coords.longitude;
+    await loadWeather(recLat.value, recLng.value);
+    locating.value = false;
+  }, () => { locating.value = false; }, { timeout: 8000, maximumAge: 600000 });
+}
+
+// ---- 咖啡因耐受上限（动态） ----
+const caffLimit = computed(() => state.caffeineThreshold ?? LIMITS.caffeine);
+
+// ---- 语音输入（Web Speech API，微信内降级隐藏） ----
+const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+const speechSupported = !isWeChat && typeof window !== "undefined"
+  && (window.SpeechRecognition || window.webkitSpeechRecognition);
+const recognizing = ref(false);
+let recognition = null;
+function ensureRecognition() {
+  if (recognition) return recognition;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  recognition = new SR();
+  recognition.lang = "zh-CN";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = (e) => {
+    const text = Array.from(e.results).map(r => r[0].transcript).join("");
+    noteForm.value.notes = (noteForm.value.notes ? noteForm.value.notes.replace(/\s+$/, "") + " " : "") + text;
+  };
+  recognition.onend = () => { recognizing.value = false; };
+  recognition.onerror = () => { recognizing.value = false; toast("语音识别失败", "err"); };
+  return recognition;
+}
+function toggleMic() {
+  const r = ensureRecognition();
+  if (!r) { toast("当前环境不支持语音", "err"); return; }
+  if (recognizing.value) { try { r.stop(); } catch (_) {} recognizing.value = false; return; }
+  try { r.start(); recognizing.value = true; }
+  catch (e) { recognizing.value = false; toast("启动失败，请重试", "err"); }
+}
+
+// ---- AI 咖啡推荐 ----
+const recInput = ref("");
+const recLoading = ref(false);
+const recResult = ref(null);
+const quickTags = [
+  "刚运动完，想喝清爽的，不要太甜",
+  "下午困了，需要提神，预算20以内",
+  "晚上想喝咖啡又怕睡不着",
+  "喜欢燕麦奶，无糖，平价",
+  "冬天想喝杯热的拿铁",
+  "第一次喝咖啡，推荐入门款"
+];
+
+async function submitRecommend() {
+  if (!recInput.value.trim() || recLoading.value) return;
+  recLoading.value = true;
+  recResult.value = null;
+  try {
+    const ctx = {};
+    if (recLat.value != null && recLng.value != null) { ctx.lat = recLat.value; ctx.lng = recLng.value; }
+    if (mood.value) ctx.mood = mood.value;
+    if (sleep.value) ctx.sleep = sleep.value;
+    const data = await api.recommend(recInput.value.trim(), ctx);
+    if (data.ok) {
+      recResult.value = data;
+    } else {
+      toast("推荐失败，请稍后重试", "err");
+    }
+  } catch (e) {
+    toast("AI 推荐服务暂时不可用", "err");
+  } finally {
+    recLoading.value = false;
+  }
+}
+
+function goToShop(shopId) {
+  router.push({ path: "/radar", query: { shop: shopId } });
+}
 </script>
 
 <style scoped>
@@ -867,4 +1229,184 @@ function resetReport() { report.value = null; roastRead.value = false; previewUr
 .cam-video-wrap { position: relative; aspect-ratio: 4/3; background: var(--espresso); border-radius: var(--radius); overflow: hidden; }
 .cam-video-wrap video { width: 100%; height: 100%; object-fit: cover; }
 .cam-err { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #fff; font-size: 12px; }
+
+/* ---- 场景建议便签 ---- */
+.scene-note { background: #FFF9E8; border: 1px solid #E8D9B0; border-radius: var(--radius); }
+.scene-note-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.scene-note-title { font-size: 13px; font-weight: 700; color: var(--espresso); }
+.scene-note-tip { font-size: 11px; color: var(--mocha); line-height: 1.5; margin-bottom: 4px; }
+.scene-note-warn { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--danger); font-weight: 600; margin-bottom: 4px; }
+.scene-note-budget { font-size: 10px; color: var(--caramel); font-family: var(--mono); }
+
+/* ---- 品鉴笔记抽屉 ---- */
+.note-drawer { max-height: 80vh; overflow-y: auto; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: var(--caramel); margin-bottom: 6px; letter-spacing: 0.04em; }
+.star-row { display: flex; gap: 6px; }
+.star-btn { cursor: pointer; opacity: 0.2; transition: opacity 0.15s; color: var(--roast); }
+.star-btn.star-on { opacity: 1; }
+.star-btn:active { transform: scale(0.85); }
+.chip.active { background: var(--roast); color: var(--cream); border-color: var(--roast); }
+.body-slider { width: 100%; height: 4px; -webkit-appearance: none; appearance: none; background: var(--foam-2); border-radius: 2px; outline: none; }
+.body-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--roast); cursor: pointer; border: 2px solid var(--cream); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.body-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--roast); cursor: pointer; border: 2px solid var(--cream); }
+.field textarea { width: 100%; border: 1px solid var(--foam-2); border-radius: var(--radius); padding: 8px 10px; font-size: 13px; font-family: inherit; background: var(--cream); color: var(--espresso); resize: none; }
+.field textarea:focus { outline: none; border-color: var(--roast); }
+.mt-12 { margin-top: 12px; }
+.btn-block { width: 100%; }
+.btn-primary { background: var(--roast); color: var(--cream); }
+
+/* ---- AI 咖啡推荐卡 ---- */
+.ai-rec-card { background: var(--cream); border: 1px solid var(--foam-2); border-radius: var(--radius); padding: 14px; }
+.ai-rec-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.ai-rec-title { font-size: 13px; font-weight: 800; color: var(--espresso); }
+.ai-rec-tag { font-size: 9px; color: var(--latte); margin-left: auto; letter-spacing: 0.08em; }
+.ai-rec-body textarea { width: 100%; border: 1px solid var(--foam-2); border-radius: var(--radius); padding: 8px 10px; font-size: 13px; font-family: inherit; background: var(--cream); color: var(--espresso); resize: none; }
+.ai-rec-body textarea:focus { outline: none; border-color: var(--roast); }
+.ai-rec-quick { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.ai-rec-quick .chip { font-size: 10px; padding: 4px 8px; }
+.ai-rec-result { border-top: 1px dashed var(--foam-2); padding-top: 10px; }
+.ai-rec-summary { font-size: 11px; color: var(--caramel); font-weight: 600; margin-bottom: 8px; }
+.ai-rec-empty { font-size: 12px; color: var(--mocha); text-align: center; padding: 12px; }
+.ai-rec-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--foam-2); margin-bottom: 6px; }
+.ai-rec-item-main { flex: 1; min-width: 0; }
+.ai-rec-item-name { font-size: 14px; font-weight: 800; color: var(--espresso); margin-bottom: 2px; }
+.ai-rec-item-shop { font-size: 10px; color: var(--latte); margin-bottom: 4px; }
+.ai-rec-item-reason { font-size: 11px; color: var(--mocha); line-height: 1.4; }
+.ai-rec-item-tac { text-align: right; flex-shrink: 0; margin-left: 10px; }
+.ai-rec-item-price { font-family: var(--mono); font-size: 16px; font-weight: 800; color: var(--espresso); }
+.mt-4 { margin-top: 4px; }
+
+/* ===== 桌面端：Editorial 仪表盘 12 列网格 ===== */
+@media (min-width: 1024px) {
+  .dk-scan-layout {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 20px;
+    row-gap: 20px;
+    align-items: start;
+    /* 默认（无报告）：intro 通栏 + 录入两列 7/5 + 底部并排 7/5 */
+    grid-template-areas:
+      "intro intro intro intro intro intro intro intro intro intro intro intro"
+      "airec airec airec airec airec airec airec capture capture capture capture capture"
+      "picker picker picker picker picker picker picker intake intake intake intake intake";
+  }
+  /* 有报告：intro 通栏 + 录入两列 7/5 + 报告通栏 + 底部并排 7/5 */
+  .dk-scan-layout.has-report {
+    grid-template-areas:
+      "intro intro intro intro intro intro intro intro intro intro intro intro"
+      "airec airec airec airec airec airec airec capture capture capture capture capture"
+      "report report report report report report report report report report report report"
+      "picker picker picker picker picker picker picker intake intake intake intake intake";
+  }
+  .dk-mod-intro   { grid-area: intro; }
+  .dk-mod-airec   { grid-area: airec; }
+  .dk-mod-capture { grid-area: capture; }
+  .dk-mod-report  { grid-area: report; }
+  .dk-mod-picker  { grid-area: picker; }
+  .dk-mod-intake  { grid-area: intake; }
+
+  /* 移除原 sticky 侧栏：自然滚动 */
+  .dk-mod { position: static; max-height: none; overflow: visible; }
+  /* 各列首项去除顶部 mt，统一由 row-gap 控制 */
+  .dk-mod > :first-child { margin-top: 0; }
+
+  /* intro 通栏：mini-stats 与 hero 横向并排 */
+  .dk-mod-intro {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .dk-mod-intro .mini-stats { flex: 0 0 auto; padding: 8px 16px; }
+  .dk-mod-intro .hero { flex: 1 1 320px; margin-top: 0; }
+  .dk-mod-intro .hero .hero-title { font-size: 22px; }
+  .dk-mod-intro .scene-note { flex: 1 1 100%; margin-top: 0; }
+
+  /* 录入两列：统一卡片容器 */
+  .dk-mod-airec .ai-rec-card,
+  .dk-capture-card {
+    background: linear-gradient(180deg,#FCFAF4 0%,#F8F3E8 100%);
+    border: 1px solid var(--foam-2);
+    border-radius: 2px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(43,30,20,.06), inset 0 1px 0 rgba(255,255,255,.5);
+    display: flex; flex-direction: column;
+    gap: 12px;
+    height: 100%;
+  }
+
+  /* === 质检报告全宽 + 可视化舒展 === */
+
+  /* 成分透视：杯子解剖图左 + 数据右 */
+  .dk-mod-report .cost-anatomy {
+    display: grid;
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+    grid-template-areas:
+      "cup nutrition"
+      "cup recipe"
+      "tags tags";
+    gap: 16px 28px;
+    align-items: start;
+  }
+  .dk-mod-report .anatomy-svg       { grid-area: cup; max-width: 420px; width: 100%; margin: 0; }
+  .dk-mod-report .anatomy-nutrition { grid-area: nutrition; border-top: none; border-bottom: 1px solid var(--foam-2); padding: 0 0 8px; }
+  .dk-mod-report .anatomy-recipe    { grid-area: recipe; }
+  .dk-mod-report .rp-tags           { grid-area: tags; }
+
+  /* 仪表盘/双柱尺寸放大 */
+  .dk-mod-report .gauge-svg   { width: 220px; height: 124px; }
+  .dk-mod-report .dual-bar-col{ height: 36px; }
+
+  /* 封面标题字号提级（解除 vw 封顶） */
+  .dk-mod-report .rp-name     { font-size: clamp(22px, 2.6vw, 32px); }
+  .dk-mod-report .rp-hp-value { font-size: clamp(36px, 4.2vw, 56px); }
+
+  /* AI 深度解析多段两列 */
+  .dk-mod-report .rp-roast-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 28px;
+    row-gap: 14px;
+  }
+  .dk-mod-report .roast-sec { margin-bottom: 0; }
+
+  /* 长文阅读尺度 */
+  .dk-mod-report .rp-roast-text,
+  .dk-mod-report .warn-line { max-width: 820px; }
+
+  /* 报告圆角编辑风格化 */
+  .dk-scan-layout .report { border-radius: 2px; }
+  .dk-scan-layout .report .panel-pad { border-radius: 0; }
+
+  /* 底部 picker 换行展开 */
+  .dk-mod-picker .picker { flex-wrap: wrap; overflow-x: visible; }
+  .dk-mod-picker .picker-card { flex: 0 0 132px; }
+}
+
+/* ---- 情境选择器 / 语音 / 身体反馈（新功能） ---- */
+.ai-rec-ctx { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ctx-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.ctx-cap { font-size: 11px; color: var(--muted); width: 28px; flex: none; }
+.ctx-chip { min-height: 36px; padding: 6px 12px; border-radius: 2px; border: 1px solid var(--ink-black);
+  background: var(--oat); color: var(--ink-black); font-size: 12px; }
+.ctx-chip.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+.ctx-weather.muted { color: var(--muted); }
+.note-field-head { display: flex; align-items: center; justify-content: space-between; }
+.mic-btn { min-height: 36px; padding: 4px 10px; border-radius: 2px; border: 1px solid var(--ink-black);
+  background: var(--oat); color: var(--ink-black); font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+.mic-btn.on { background: var(--orange); color: #fff; border-color: var(--orange); }
+.mic-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: micpulse 1s infinite; }
+@keyframes micpulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.body-feedback { margin-top: 8px; border-top: 1px dashed var(--ink-black); padding-top: 8px; }
+.bf-toggle { width: 100%; min-height: 36px; display: flex; justify-content: space-between; align-items: center;
+  background: none; border: none; color: var(--ink-black); font-size: 13px; }
+.bf-toggle .icon { transition: transform .2s; }
+.bf-toggle .icon.open { transform: rotate(180deg); }
+.bf-body { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
+.bf-row label { font-size: 12px; }
+.sev-chips { display: flex; gap: 6px; margin-top: 4px; }
+.sev-chip { min-height: 36px; padding: 6px 14px; border-radius: 2px; border: 1px solid var(--ink-black);
+  background: var(--oat); color: var(--ink-black); font-size: 12px; }
+.sev-chip.active { background: var(--ink-black); color: var(--oat); }
 </style>

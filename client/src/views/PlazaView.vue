@@ -568,4 +568,16 @@ async function submit() {
 .pd-comment-input { display: flex; gap: 6px; margin-top: 8px; }
 .pd-comment-input input { flex: 1; padding: 8px 10px; border: 1px solid var(--foam-2); border-radius: var(--radius-sm); font-size: 12px; background: var(--cream); }
 .pd-comment-input input:focus { outline: none; border-color: var(--caramel); }
+
+/* ===== 桌面端：双列动态流 ===== */
+@media (min-width: 1024px) {
+  .plaza-head { align-items: center; }
+  .reveal-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 16px;
+  }
+  .reveal-group > .feed-card { margin-top: 0; }
+  .reveal-group > .feed-card.spotlight { grid-column: 1 / -1; }
+}
 </style>
