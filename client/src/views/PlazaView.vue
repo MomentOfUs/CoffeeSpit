@@ -523,7 +523,7 @@ async function submit() {
   height: 14px;
   background: rgba(255,235,180,0.5);
   border: 1px solid rgba(184,144,46,0.18);
-  border-radius: 1px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 1px 2px rgba(43,30,20,0.08);
   z-index: 2; /* 压在纸纹 ::after 之上 */
   pointer-events: none;
@@ -561,7 +561,7 @@ async function submit() {
 .pd-comment { padding: 8px 0; border-bottom: 1px solid var(--foam-2); }
 .pd-comment:last-child { border-bottom: none; }
 .pd-comment-user { font-size: 11px; font-weight: 700; color: var(--espresso); display: flex; align-items: center; gap: 6px; }
-.pd-comment-rating { font-size: 9px; color: var(--roast); background: var(--foam); padding: 1px 6px; border-radius: 2px; }
+.pd-comment-rating { font-size: 9px; color: var(--roast); background: var(--foam); padding: 1px 6px; border-radius: var(--radius-sm); }
 .pd-comment-text { font-size: 12px; color: var(--mocha); line-height: 1.5; margin-top: 3px; }
 .pd-comment-time { font-size: 9px; color: var(--latte); margin-top: 3px; }
 .pd-comments-empty { font-size: 12px; color: var(--latte); padding: 12px 0; text-align: center; }

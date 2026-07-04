@@ -268,7 +268,7 @@ async function finish() {
   color: var(--mocha);
   padding: 4px 10px;
   border: 1px solid var(--foam-2);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--cream);
 }
 .ob-skip:active { background: var(--foam); }
@@ -283,7 +283,7 @@ async function finish() {
 .ob-dot {
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--foam-2);
   transition: all 0.25s ease;
 }
@@ -386,7 +386,7 @@ async function finish() {
   gap: 6px;
   padding: 8px 14px;
   border: 1px solid var(--foam-2);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--cream);
   color: var(--caramel);
   font-size: 12.5px;
@@ -400,7 +400,7 @@ async function finish() {
   width: 100%;
   max-width: 300px;
   aspect-ratio: 4 / 3;
-  border-radius: 2px;
+  border-radius: var(--radius-lg);
   background:
     radial-gradient(circle at 30% 20%, rgba(210,112,43,0.15), transparent 50%),
     radial-gradient(circle at 70% 80%, rgba(122,74,36,0.2), transparent 50%),
@@ -462,7 +462,7 @@ async function finish() {
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--foam-2);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--cream);
   text-align: left;
   box-shadow: var(--shadow-card);
@@ -474,7 +474,7 @@ async function finish() {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--foam);
   color: var(--caramel);
 }
@@ -485,7 +485,7 @@ async function finish() {
 .ob-toggles {
   width: 100%;
   border: 1px solid var(--foam-2);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--cream);
   overflow: hidden;
   box-shadow: var(--shadow-card);
@@ -537,7 +537,7 @@ async function finish() {
   background: var(--cream);
   box-shadow: 0 -2px 12px rgba(43,30,20,0.04);
 }
-.ob-foot .btn { flex: 1; border-radius: 2px; }
+.ob-foot .btn { flex: 1; border-radius: var(--radius-sm); }
 .ob-back { background: var(--cream); }
 .ob-back-ghost { opacity: 0.7; }
 .ob-next { flex: 1.4; }

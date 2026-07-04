@@ -302,11 +302,11 @@
         </div>
       </section>
 
-      <!-- 5. 健康档案：开关前加 Icon -->
+      <!-- 5. 健康档案 + 数据导出（合并） -->
       <section class="section sec-health" :style="{ '--i': 3 }">
         <div class="section-head">
           <h3>健康档案</h3>
-          <span class="label"><span class="dot"></span>健康档案</span>
+          <span class="label"><span class="dot"></span>档案·导出</span>
         </div>
         <div class="panel">
           <div v-for="opt in healthOpts" :key="opt.key" class="switch">
@@ -325,19 +325,12 @@
               @click="toggleOpt(opt.key)"
             ></button>
           </div>
+          <div class="perf-line" style="margin: 12px 0"></div>
+          <button class="btn btn-block" :disabled="exporting" @click="onExport">
+            <Icon name="download" :size="14" />
+            {{ exporting ? '导出中…' : '导出我的数据 (JSON)' }}
+          </button>
         </div>
-      </section>
-
-      <!-- 6. 数据导出 -->
-      <section class="section sec-data" :style="{ '--i': 4 }">
-        <div class="section-head">
-          <h3>数据管理</h3>
-          <span class="label"><span class="dot"></span>导出报告</span>
-        </div>
-        <button class="btn btn-block" :disabled="exporting" @click="onExport">
-          <Icon name="download" :size="14" />
-          {{ exporting ? '导出中…' : '导出我的数据 (JSON)' }}
-        </button>
       </section>
     </div>
 
@@ -715,7 +708,7 @@ onMounted(() => {
 .intake-stat-cell .sub { font-family: var(--mono); font-size: 8px; color: var(--latte); margin-top: 2px; }
 .intake-chart { display: flex; align-items: flex-end; gap: 2px; height: 60px; }
 .ic-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
-.ic-bar { width: 60%; max-width: 14px; background: var(--roast); border-radius: 2px 2px 0 0; min-height: 2px; transition: height .4s ease; }
+.ic-bar { width: 60%; max-width: 14px; background: var(--roast); border-radius: var(--radius-sm) var(--radius-sm) 0 0; min-height: 2px; transition: height .4s ease; }
 .ic-bar.zero { background: var(--foam-2); }
 .ic-label { font-family: var(--mono); font-size: 7px; color: var(--latte); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
@@ -738,7 +731,7 @@ onMounted(() => {
 
 /* 16 型图鉴抽屉 */
 .mbti-drawer-mask { position: fixed; inset: 0; background: rgba(28,26,23,0.5); z-index: 100; animation: fadeIn 0.25s; }
-.mbti-drawer { position: fixed; left: 0; right: 0; bottom: 0; max-height: 80vh; background: var(--oat); border-radius: 16px 16px 0 0; z-index: 101; display: flex; flex-direction: column; animation: drawerUp 0.3s cubic-bezier(0.2,0.9,0.3,1); }
+.mbti-drawer { position: fixed; left: 0; right: 0; bottom: 0; max-height: 80vh; background: var(--oat); border-radius: var(--radius-lg) var(--radius-lg) 0 0; z-index: 101; display: flex; flex-direction: column; animation: drawerUp 0.3s cubic-bezier(0.2,0.9,0.3,1); }
 .mbti-drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 10px; border-bottom: 1px solid rgba(43,30,20,0.08); }
 .mbti-drawer-head h4 { font-size: 14px; font-weight: 800; color: var(--espresso); }
 .mbti-drawer-close { font-size: 18px; color: var(--latte); background: none; border: none; cursor: pointer; padding: 4px 8px; }
@@ -781,27 +774,32 @@ onMounted(() => {
     grid-template-columns: 1fr 1fr;
     column-gap: 24px;
     row-gap: 24px;
-    align-items: start;
+    align-items: stretch;
     grid-auto-flow: dense;
   }
   .profile-hero { grid-column: 1 / -1; }
   .reveal-group { display: contents; }
   .reveal-group > .section { margin-top: 0; }
 
-  /* 显式列分配（替代 :has() 嗅探） */
+  /* 显式列分配：仅 weekly/notes 通栏，intake/achv 改并排 */
   .sec-personality { grid-column: 1; grid-row: span 2; }
   .sec-impression  { grid-column: 2; }
-  .sec-weekly      { grid-column: 1 / -1; }
   .sec-stats       { grid-column: 2; }
   .sec-today       { grid-column: 1; }
   .sec-tolerance   { grid-column: 2; }
-  .sec-intake      { grid-column: 1 / -1; }
-  .sec-achv        { grid-column: 1 / -1; }
+  .sec-weekly      { grid-column: 1 / -1; }
+  .sec-intake      { grid-column: 1; }
+  .sec-achv        { grid-column: 2; }
   .sec-notes       { grid-column: 1 / -1; }
-  .sec-health      { grid-column: 1; }
-  .sec-data        { grid-column: 2; }
+  .sec-health      { grid-column: 1 / -1; }
 
-  .achv-grid { grid-template-columns: repeat(8, 1fr); }
+  /* achv-grid 4 列（单列内每个≈130px） */
+  .achv-grid { grid-template-columns: repeat(4, 1fr); }
+
+  /* 统一卡片高度感 */
+  .dk-main-wrap .page .section { display: flex; flex-direction: column; }
+  .dk-main-wrap .page .section > :last-child { flex: 1; }
+  .dk-main-wrap .page .panel-pad { padding: 16px; }
 }
 
 /* ---- AI 画像 / 周报 / 耐受（新功能） ---- */
@@ -810,7 +808,7 @@ onMounted(() => {
 .imp-eyebrow { font-size: 10px; letter-spacing: .14em; color: var(--muted); }
 .imp-text { font-size: 15px; line-height: 1.8; color: var(--ink-black); margin: 8px 0 12px; }
 .imp-kw-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.imp-kw { min-height: 28px; padding: 4px 10px; border-radius: 2px; border: 1px solid var(--ink-black);
+.imp-kw { min-height: 28px; padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--ink-black);
   color: var(--ink-black); font-size: 12px; background: var(--oat); }
 .imp-foot { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--ink-black); }
 
@@ -824,7 +822,7 @@ onMounted(() => {
 .doc-highlights { margin: 10px 0; padding-left: 18px; }
 .doc-highlights li { font-size: 13px; color: var(--ink-black); line-height: 1.7; list-style: "· "; }
 .doc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.wr-tag { min-height: 28px; padding: 4px 10px; border-radius: 2px; background: var(--ink-black);
+.wr-tag { min-height: 28px; padding: 4px 10px; border-radius: var(--radius-sm); background: var(--ink-black);
   color: var(--oat); font-size: 12px; }
 .doc-suggestion { margin-top: 10px; padding: 10px; background: var(--oat); border-left: 3px solid var(--orange); }
 .doc-sug-label { font-size: 10px; color: var(--orange); }

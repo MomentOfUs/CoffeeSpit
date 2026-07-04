@@ -21,7 +21,7 @@ defineProps({
   justify-content: center;
   padding: 5px 14px;
   border: 1.5px solid currentColor;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   position: relative;
   animation: stampPress 0.4s cubic-bezier(.2,1.4,.4,1) both;
   font-family: var(--serif);

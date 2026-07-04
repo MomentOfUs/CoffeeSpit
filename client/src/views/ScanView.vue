@@ -36,7 +36,7 @@
 
     <section class="dk-mod dk-mod-airec">
     <!-- AI 咖啡推荐 -->
-    <div class="ai-rec-card mt-8">
+    <div class="ai-rec-card">
       <div class="ai-rec-head">
         <Icon name="stamp" :size="14" style="color:var(--roast)" />
         <span class="ai-rec-title">AI 咖啡推荐</span>
@@ -45,7 +45,7 @@
       <div class="ai-rec-body">
         <textarea v-model="recInput" rows="3"
           placeholder="描述你现在的状态和喜好，如：刚运动完想喝清爽的，不要太甜，预算25以内"></textarea>
-        <button class="btn btn-primary btn-block mt-8" @click="submitRecommend"
+        <button class="btn btn-primary btn-block" @click="submitRecommend"
                 :disabled="!recInput.trim() || recLoading">
           <Icon name="stamp" :size="14" /> {{ recLoading ? 'AI 思考中…' : '获取推荐' }}
         </button>
@@ -70,7 +70,7 @@
           <span v-else class="ctx-chip ctx-weather muted">{{ locating ? '定位中…' : '未获取' }}</span>
         </div>
       </div>
-      <div v-if="recResult" class="ai-rec-result mt-8">
+      <div v-if="recResult" class="ai-rec-result">
         <div class="ai-rec-summary">{{ recResult.summary }}</div>
         <div v-if="recResult.recommendations.length === 0" class="ai-rec-empty">
           暂时没有匹配的咖啡，试试换个描述？
@@ -91,14 +91,20 @@
     </section>
 
     <section class="dk-mod dk-mod-capture">
+    <div class="dk-capture-card">
+    <div class="section-head">
+      <h3>识破入口</h3>
+      <span class="label"><span class="dot"></span>拍照·搜索·手填</span>
+    </div>
+
     <!-- 搜索优先入口 -->
-    <div class="search-box mt-12">
+    <div class="search-box">
       <Icon name="search" :size="18" class="search-icon" />
       <input v-model="searchQuery" @input="onSearch" placeholder="搜咖啡名 / 品牌 / 城市…" />
     </div>
 
     <!-- 搜索结果下拉 -->
-    <div v-if="searchQuery.length >= 1" class="search-results mt-8">
+    <div v-if="searchQuery.length >= 1" class="search-results">
       <div v-if="searchResults.length" class="reveal-group">
         <div v-for="(r, i) in searchResults" :key="r.id" class="sr-item" style="--i:i" @click="onSelectResult(r)">
           <div>
@@ -111,14 +117,14 @@
       <div v-else-if="searchQuery.length >= 2" class="sr-empty">
         <Icon name="cup" :size="32" style="opacity:0.3" />
         <div style="margin-top:8px">咖啡库里没有这杯</div>
-        <button class="btn btn-sm btn-primary mt-8" @click="openManualForm">
+        <button class="btn btn-sm btn-primary" @click="openManualForm">
           <Icon name="edit" :size="12" /> 手动填参数生成报告
         </button>
       </div>
     </div>
 
     <!-- 拍照 + 相册 -->
-    <div class="row gap-8 mt-8">
+    <div class="row gap-8">
       <button class="btn btn-accent btn-block" @click="openCamera" :disabled="scanning">
         <Icon name="camera" :size="16" /> 拍照识破
       </button>
@@ -129,7 +135,7 @@
     </div>
 
     <!-- 自然语言录入 -->
-    <div v-if="showManualForm" class="panel panel-pad mt-12" style="animation: reportIn .3s ease">
+    <div v-if="showManualForm" class="panel panel-pad" style="animation: reportIn .3s ease">
       <div class="row-between" style="margin-bottom:10px">
         <span class="mono" style="font-size:11px;letter-spacing:.12em;color:var(--caramel)"><Icon name="edit" :size="12" /> 自然语言录入</span>
         <button class="iconbtn" @click="showManualForm = false"><Icon name="close" :size="14" /></button>
@@ -138,9 +144,10 @@
         <label>描述这杯咖啡</label>
         <textarea v-model="naturalText" rows="4" placeholder="如：在星巴克买了一杯焦糖玛奇朵，35块，据说成本也就6块5，糖挺多糖浆味重，有焦糖纹…"></textarea>
       </div>
-      <button class="btn btn-primary btn-block mt-12" @click="submitNatural" :disabled="!naturalText.trim() || parsing">
+      <button class="btn btn-primary btn-block" @click="submitNatural" :disabled="!naturalText.trim() || parsing">
         <Icon name="stamp" :size="14" /> {{ parsing ? 'AI 解析中…' : 'AI 解析并生成报告' }}
       </button>
+    </div>
     </div>
     </section>
 
@@ -1155,8 +1162,8 @@ function goToShop(shopId) {
 .premium-num.danger { color: var(--danger); }
 .premium-hint { font-size: 10px; color: var(--latte); }
 .dual-bar { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
-.dual-bar-col { height: 28px; background: var(--foam); border-radius: 2px; overflow: hidden; position: relative; }
-.dual-bar-bar { height: 100%; display: flex; align-items: center; padding: 0 8px; border-radius: 2px; animation: liquidFill 0.6s ease both; }
+.dual-bar-col { height: 28px; background: var(--foam); border-radius: var(--radius-sm); overflow: hidden; position: relative; }
+.dual-bar-bar { height: 100%; display: flex; align-items: center; padding: 0 8px; border-radius: var(--radius-sm); animation: liquidFill 0.6s ease both; }
 .dual-bar-bar.real { background: var(--mocha); color: var(--cream); }
 .dual-bar-bar.reported { background: linear-gradient(90deg, var(--roast), var(--danger)); color: #fff; }
 .dual-bar-label { font-size: 10px; font-weight: 700; white-space: nowrap; }
@@ -1247,10 +1254,10 @@ function goToShop(shopId) {
 .star-btn.star-on { opacity: 1; }
 .star-btn:active { transform: scale(0.85); }
 .chip.active { background: var(--roast); color: var(--cream); border-color: var(--roast); }
-.body-slider { width: 100%; height: 4px; -webkit-appearance: none; appearance: none; background: var(--foam-2); border-radius: 2px; outline: none; }
+.body-slider { width: 100%; height: 4px; -webkit-appearance: none; appearance: none; background: var(--foam-2); border-radius: var(--radius-sm); outline: none; }
 .body-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--roast); cursor: pointer; border: 2px solid var(--cream); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 .body-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--roast); cursor: pointer; border: 2px solid var(--cream); }
-.field textarea { width: 100%; border: 1px solid var(--foam-2); border-radius: var(--radius); padding: 8px 10px; font-size: 13px; font-family: inherit; background: var(--cream); color: var(--espresso); resize: none; }
+.field textarea { width: 100%; border: 1px solid var(--foam-2); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; font-family: inherit; background: var(--cream); color: var(--espresso); resize: none; }
 .field textarea:focus { outline: none; border-color: var(--roast); }
 .mt-12 { margin-top: 12px; }
 .btn-block { width: 100%; }
@@ -1261,14 +1268,14 @@ function goToShop(shopId) {
 .ai-rec-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .ai-rec-title { font-size: 13px; font-weight: 800; color: var(--espresso); }
 .ai-rec-tag { font-size: 9px; color: var(--latte); margin-left: auto; letter-spacing: 0.08em; }
-.ai-rec-body textarea { width: 100%; border: 1px solid var(--foam-2); border-radius: var(--radius); padding: 8px 10px; font-size: 13px; font-family: inherit; background: var(--cream); color: var(--espresso); resize: none; }
+.ai-rec-body textarea { width: 100%; border: 1px solid var(--foam-2); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; font-family: inherit; background: var(--cream); color: var(--espresso); resize: none; }
 .ai-rec-body textarea:focus { outline: none; border-color: var(--roast); }
 .ai-rec-quick { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
 .ai-rec-quick .chip { font-size: 10px; padding: 4px 8px; }
 .ai-rec-result { border-top: 1px dashed var(--foam-2); padding-top: 10px; }
 .ai-rec-summary { font-size: 11px; color: var(--caramel); font-weight: 600; margin-bottom: 8px; }
 .ai-rec-empty { font-size: 12px; color: var(--mocha); text-align: center; padding: 12px; }
-.ai-rec-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--foam-2); margin-bottom: 6px; }
+.ai-rec-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--foam-2); margin-bottom: 6px; }
 .ai-rec-item-main { flex: 1; min-width: 0; }
 .ai-rec-item-name { font-size: 14px; font-weight: 800; color: var(--espresso); margin-bottom: 2px; }
 .ai-rec-item-shop { font-size: 10px; color: var(--latte); margin-bottom: 4px; }
@@ -1284,8 +1291,7 @@ function goToShop(shopId) {
     grid-template-columns: repeat(12, 1fr);
     column-gap: 20px;
     row-gap: 20px;
-    align-items: start;
-    /* 默认（无报告）：intro 通栏 + 录入两列 7/5 + 底部并排 7/5 */
+    align-items: stretch;
     grid-template-areas:
       "intro intro intro intro intro intro intro intro intro intro intro intro"
       "airec airec airec airec airec airec airec capture capture capture capture capture"
@@ -1308,6 +1314,8 @@ function goToShop(shopId) {
 
   /* 移除原 sticky 侧栏：自然滚动 */
   .dk-mod { position: static; max-height: none; overflow: visible; }
+  /* picker/intake 不等高，避免被撑高 */
+  .dk-mod-picker, .dk-mod-intake { align-self: start; }
   /* 各列首项去除顶部 mt，统一由 row-gap 控制 */
   .dk-mod > :first-child { margin-top: 0; }
 
@@ -1319,7 +1327,7 @@ function goToShop(shopId) {
     flex-wrap: wrap;
   }
   .dk-mod-intro .mini-stats { flex: 0 0 auto; padding: 8px 16px; }
-  .dk-mod-intro .hero { flex: 1 1 320px; margin-top: 0; }
+  .dk-mod-intro .hero { flex: 1 1 360px; min-width: 360px; margin-top: 0; }
   .dk-mod-intro .hero .hero-title { font-size: 22px; }
   .dk-mod-intro .scene-note { flex: 1 1 100%; margin-top: 0; }
 
@@ -1328,7 +1336,6 @@ function goToShop(shopId) {
   .dk-capture-card {
     background: linear-gradient(180deg,#FCFAF4 0%,#F8F3E8 100%);
     border: 1px solid var(--foam-2);
-    border-radius: 2px;
     padding: 16px;
     box-shadow: 0 1px 3px rgba(43,30,20,.06), inset 0 1px 0 rgba(255,255,255,.5);
     display: flex; flex-direction: column;
@@ -1375,25 +1382,24 @@ function goToShop(shopId) {
   .dk-mod-report .rp-roast-text,
   .dk-mod-report .warn-line { max-width: 820px; }
 
-  /* 报告圆角编辑风格化 */
-  .dk-scan-layout .report { border-radius: 2px; }
+  /* 报告圆角回归 token（柔和友好） */
   .dk-scan-layout .report .panel-pad { border-radius: 0; }
 
   /* 底部 picker 换行展开 */
   .dk-mod-picker .picker { flex-wrap: wrap; overflow-x: visible; }
-  .dk-mod-picker .picker-card { flex: 0 0 132px; }
+  .dk-mod-picker .picker-card { flex: 0 0 calc((100% - 3 * 8px) / 4); }
 }
 
 /* ---- 情境选择器 / 语音 / 身体反馈（新功能） ---- */
 .ai-rec-ctx { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .ctx-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .ctx-cap { font-size: 11px; color: var(--muted); width: 28px; flex: none; }
-.ctx-chip { min-height: 36px; padding: 6px 12px; border-radius: 2px; border: 1px solid var(--ink-black);
+.ctx-chip { min-height: 36px; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--ink-black);
   background: var(--oat); color: var(--ink-black); font-size: 12px; }
 .ctx-chip.active { background: var(--orange); color: #fff; border-color: var(--orange); }
 .ctx-weather.muted { color: var(--muted); }
 .note-field-head { display: flex; align-items: center; justify-content: space-between; }
-.mic-btn { min-height: 36px; padding: 4px 10px; border-radius: 2px; border: 1px solid var(--ink-black);
+.mic-btn { min-height: 36px; padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--ink-black);
   background: var(--oat); color: var(--ink-black); font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
 .mic-btn.on { background: var(--orange); color: #fff; border-color: var(--orange); }
 .mic-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: micpulse 1s infinite; }
@@ -1406,7 +1412,7 @@ function goToShop(shopId) {
 .bf-body { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
 .bf-row label { font-size: 12px; }
 .sev-chips { display: flex; gap: 6px; margin-top: 4px; }
-.sev-chip { min-height: 36px; padding: 6px 14px; border-radius: 2px; border: 1px solid var(--ink-black);
+.sev-chip { min-height: 36px; padding: 6px 14px; border-radius: var(--radius-sm); border: 1px solid var(--ink-black);
   background: var(--oat); color: var(--ink-black); font-size: 12px; }
 .sev-chip.active { background: var(--ink-black); color: var(--oat); }
 </style>

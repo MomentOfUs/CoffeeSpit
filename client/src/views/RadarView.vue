@@ -764,11 +764,11 @@ watch(activeId, () => {
 .ctx-bar .ctx-body { display: flex; flex-direction: column; gap: 10px; }
 .ctx-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .ctx-label { font-size: 11px; color: var(--muted); width: 32px; flex: none; }
-.ctx-chip { min-height: 36px; padding: 6px 12px; border-radius: 2px; border: 1px solid var(--ink-black);
+.ctx-chip { min-height: 36px; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--ink-black);
   background: var(--oat); color: var(--ink-black); font-size: 12px; }
 .ctx-chip.active { background: var(--orange); color: #fff; border-color: var(--orange); }
 .ctx-weather.muted { color: var(--muted); }
-.ctx-input { width: 100%; min-height: 40px; border-radius: 2px; border: 1px solid var(--ink-black);
+.ctx-input { width: 100%; min-height: 40px; border-radius: var(--radius-sm); border: 1px solid var(--ink-black);
   background: var(--oat); color: var(--ink-black); padding: 8px 12px; font-size: 13px; }
 .ctx-actions { display: flex; gap: 8px; }
 </style>

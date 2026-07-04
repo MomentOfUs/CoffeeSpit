@@ -108,7 +108,7 @@ function onCta() {
 }
 .sk-cta {
   margin-top: 16px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* ---- 加载态 ---- */
@@ -140,7 +140,7 @@ function onCta() {
 }
 .sk-bar {
   height: 14px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--foam) 0%, var(--foam-2) 40%, var(--foam) 80%);
   background-size: 220% 100%;
   animation: skShimmer 1.3s ease-in-out infinite;
@@ -171,7 +171,7 @@ function onCta() {
 .sk-ico {
   width: 72px;
   height: 72px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,6 +187,5 @@ function onCta() {
 }
 .sk-error .sk-title { color: var(--danger); }
 
-/* ---- 按钮统一 2px 圆角 ---- */
-.sk-cta { border-radius: 2px; }
+/* ---- 按钮圆角统一 var(--radius-sm) ---- */
 </style>
